@@ -1,0 +1,49 @@
+# Dependency directories
+frontend/node_modules/
+node_modules/
+
+# Next.js build outputs
+frontend/.next/
+frontend/out/
+
+# Python cache and compiled files
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+backend/__pycache__/
+
+# Python environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Local configuration files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+frontend/.env
+frontend/.env.local
+backend/.env
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Machine Learning models (serialized model checkpoints)
+models/*.pkl
+models/*.h5
+models/*.pt
+models/*.onnx
+
+# Large datasets / CSV files (optional: comment out if you want to track them in git)
+*.csv
+datasets/

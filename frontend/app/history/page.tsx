@@ -1,0 +1,295 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
+import { PredictionRecord } from "@/lib/types";
+import { History, CheckSquare, ChevronLeft, ChevronRight, CheckCircle2, RefreshCw } from "lucide-react";
+
+export default function HistoryPage() {
+  const [history, setHistory] = useState<PredictionRecord[]>([]);
+  const [total, setTotal] = useState(0);
+  const [limit] = useState(25);
+  const [offset, setOffset] = useState(0);
+  const [categoryFilter, setCategoryFilter] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+
+  // Verification state modal
+  const [selectedRecord, setSelectedRecord] = useState<PredictionRecord | null>(null);
+  const [verifiedCategory, setVerifiedCategory] = useState<string>("Fresh");
+  const [verifiedScore, setVerifiedScore] = useState<number>(80);
+  const [verifiedNotes, setVerifiedNotes] = useState<string>("");
+  const [verifyLoading, setVerifyLoading] = useState(false);
+
+  const loadHistory = async () => {
+    setLoading(true);
+    try {
+      const res = await api.getHistory(limit, offset, categoryFilter || undefined);
+      if (res.success) {
+        setHistory(res.data);
+        setTotal(res.total);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadHistory();
+  }, [offset, categoryFilter]);
+
+  const handleOpenVerify = (record: PredictionRecord) => {
+    setSelectedRecord(record);
+    setVerifiedCategory(record.category);
+    setVerifiedScore(record.freshness_score);
+    setVerifiedNotes("");
+  };
+
+  const handleVerifySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRecord?.id) return;
+    setVerifyLoading(true);
+    try {
+      const res = await api.verifyPrediction(
+        selectedRecord.id,
+        verifiedCategory,
+        verifiedScore,
+        verifiedNotes
+      );
+      if (res.success) {
+        alert("✔ Diagnostic label verified & logged to verified_dataset.csv!");
+        setSelectedRecord(null);
+        loadHistory();
+      }
+    } catch (err: any) {
+      alert("Verification logging failed: " + (err.response?.data?.detail || err.message));
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (offset + limit < total) {
+      setOffset(offset + limit);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (offset - limit >= 0) {
+      setOffset(offset - limit);
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="border-b border-slate-900 pb-4 flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-white font-mono tracking-wide uppercase flex items-center gap-2">
+            <History size={24} className="text-accent-green" />
+            Prediction Audit History
+          </h2>
+          <p className="text-xs text-slate-500 mt-1">
+            Browse and query historical database records, and verify labels to build the training set.
+          </p>
+        </div>
+        <button
+          onClick={loadHistory}
+          className="bg-slate-900 border border-slate-800 rounded px-3 py-2 text-slate-400 hover:text-slate-200 transition-colors"
+        >
+          <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+        </button>
+      </div>
+
+      {/* Query Filters */}
+      <div className="glass-panel rounded-xl p-4 border border-slate-800/40 flex flex-wrap gap-4 items-center">
+        <div className="flex items-center gap-2 font-mono text-xs">
+          <span className="text-slate-500">Filter Category:</span>
+          <select
+            value={categoryFilter}
+            onChange={(e) => {
+              setCategoryFilter(e.target.value);
+              setOffset(0);
+            }}
+            className="bg-slate-900 border border-slate-800 rounded px-3 py-1 text-xs text-slate-200 outline-none focus:border-accent-green"
+          >
+            <option value="">All Categories</option>
+            <option value="Fresh">Fresh</option>
+            <option value="Aging">Aging</option>
+            <option value="Spoiling">Spoiling</option>
+          </select>
+        </div>
+        <div className="ml-auto text-[10px] font-mono text-slate-500">
+          Showing {offset + 1} - {Math.min(offset + limit, total)} of {total} records
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="glass-panel rounded-2xl border border-slate-800/50 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full font-mono text-[10px] text-slate-300 text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-950/40 text-slate-500 border-b border-slate-900 uppercase tracking-wider text-[8px]">
+                <th className="p-3">ID</th>
+                <th className="p-3">TIMESTAMP</th>
+                <th className="p-3">TOMATO_ID</th>
+                <th className="p-3">POS</th>
+                <th className="p-3">RVI</th>
+                <th className="p-3">NDVI</th>
+                <th className="p-3">SCORE</th>
+                <th className="p-3">MODEL</th>
+                <th className="p-3">CATEGORY</th>
+                <th className="p-3 text-right">ACTION</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-900/60">
+              {history.length > 0 ? (
+                history.map((row) => (
+                  <tr key={row.id} className="hover:bg-slate-950/20">
+                    <td className="p-3 font-semibold text-slate-400">db_{row.id}</td>
+                    <td className="p-3 text-slate-500">{new Date(row.timestamp).toLocaleTimeString()}</td>
+                    <td className="p-3 font-bold text-slate-400">{row.tomato_id || "N/A"}</td>
+                    <td className="p-3">{row.position || "N/A"}</td>
+                    <td className="p-3">{row.rvi.toFixed(2)}</td>
+                    <td className="p-3">{row.ndvi.toFixed(4)}</td>
+                    <td className="p-3 text-white font-bold">{row.freshness_score.toFixed(1)}</td>
+                    <td className="p-3 text-slate-500">{row.model_version}</td>
+                    <td className="p-3">
+                      <span className={`px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase ${
+                        row.category === "Fresh" ? "bg-emerald-500/10 text-emerald-400" :
+                        row.category === "Aging" ? "bg-amber-500/10 text-amber-400" :
+                        "bg-red-500/10 text-red-400"
+                      }`}>
+                        {row.category}
+                      </span>
+                    </td>
+                    <td className="p-3 text-right">
+                      <button
+                        onClick={() => handleOpenVerify(row)}
+                        className="flex items-center gap-1 ml-auto px-2.5 py-1 bg-slate-900 border border-slate-800 hover:border-accent-green hover:text-accent-green rounded text-[9px] font-mono font-bold transition-all"
+                      >
+                        <CheckSquare size={10} />
+                        <span>VERIFY</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={10} className="p-8 text-center text-slate-600">
+                    No prediction records found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination buttons */}
+        <div className="p-4 border-t border-slate-900 flex items-center justify-between font-mono text-[10px] text-slate-500">
+          <button
+            onClick={handlePrevPage}
+            disabled={offset === 0}
+            className="flex items-center gap-1 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:text-white transition-colors"
+          >
+            <ChevronLeft size={12} />
+            <span>PREV</span>
+          </button>
+          <span>PAGE {offset / limit + 1}</span>
+          <button
+            onClick={handleNextPage}
+            disabled={offset + limit >= total}
+            className="flex items-center gap-1 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:text-white transition-colors"
+          >
+            <span>NEXT</span>
+            <ChevronRight size={12} />
+          </button>
+        </div>
+      </div>
+
+      {/* Verification Modal Panel */}
+      {selectedRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="glass-panel w-full max-w-md rounded-2xl border border-slate-850 p-6 space-y-4 shadow-[0_10px_30px_rgba(0,0,0,0.6)]">
+            <div className="flex items-center justify-between border-b border-slate-900 pb-3">
+              <h3 className="text-xs font-semibold text-white font-mono uppercase tracking-wider flex items-center gap-2">
+                <CheckCircle2 size={14} className="text-accent-green" />
+                Submit verified diagnostic label
+              </h3>
+              <button
+                onClick={() => setSelectedRecord(null)}
+                className="text-slate-500 hover:text-slate-300 font-mono"
+              >
+                [ESC]
+              </button>
+            </div>
+
+            <form onSubmit={handleVerifySubmit} className="space-y-4 text-xs font-mono">
+              <div className="bg-slate-950/80 p-3 rounded-lg border border-slate-900 space-y-1.5 text-[10px] text-slate-500">
+                <div>PREDICTED SCORE: <span className="text-white font-bold">{selectedRecord.freshness_score.toFixed(2)}</span></div>
+                <div>PREDICTED CLASS: <span className="text-white font-bold">{selectedRecord.category}</span></div>
+                <div>INPUT TELEMETRY: <span className="text-slate-400">Blue:{selectedRecord.blue} / NIR:{selectedRecord.nir}</span></div>
+              </div>
+
+              {/* Verified Category selection */}
+              <div>
+                <label className="block mb-1.5 uppercase tracking-widest text-slate-500 text-[9px]">Verified Category</label>
+                <div className="flex gap-2">
+                  {["Fresh", "Aging", "Spoiling"].map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setVerifiedCategory(cat)}
+                      className={`flex-1 py-2 border rounded font-semibold text-center text-[10px] transition-all uppercase ${
+                        verifiedCategory === cat
+                          ? "border-accent-green bg-accent-green/10 text-accent-green"
+                          : "border-slate-850 bg-slate-900 text-slate-400"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Verified Score */}
+              <div>
+                <label className="block mb-1.5 uppercase tracking-widest text-slate-500 text-[9px]">Verified Freshness Score (0-100)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={verifiedScore}
+                  onChange={(e) => setVerifiedScore(parseFloat(e.target.value) || 0)}
+                  className="w-full bg-slate-900 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200 outline-none focus:border-accent-green font-mono"
+                />
+              </div>
+
+              {/* Verified Notes */}
+              <div>
+                <label className="block mb-1.5 uppercase tracking-widest text-slate-500 text-[9px]">Verification Notes</label>
+                <textarea
+                  value={verifiedNotes}
+                  onChange={(e) => setVerifiedNotes(e.target.value)}
+                  placeholder="e.g. slight yellowing near stem, texture soft..."
+                  rows={3}
+                  className="w-full bg-slate-900 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200 outline-none focus:border-accent-green font-mono placeholder:text-slate-650"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={verifyLoading}
+                className="w-full bg-accent-green text-slate-950 font-semibold py-2 rounded text-xs hover:bg-opacity-95 transition-all shadow-[0_0_15px_rgba(57,255,20,0.15)] uppercase tracking-wider font-mono"
+              >
+                {verifyLoading ? "SAVING TELEMETRY..." : "LOG VERIFICATION RECORD"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
