@@ -19,6 +19,22 @@ export default function HistoryPage() {
   const [verifiedScore, setVerifiedScore] = useState<number>(80);
   const [verifiedNotes, setVerifiedNotes] = useState<string>("");
   const [verifyLoading, setVerifyLoading] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
+
+  const formatTimestamp = (ts: string) => {
+    if (!ts) return "N/A";
+    const clean = ts.includes("Z") || ts.includes("+") ? ts : ts.replace(" ", "T") + "Z";
+    const d = new Date(clean);
+    return d.toLocaleString(undefined, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+  };
 
   const loadHistory = async () => {
     setLoading(true);
@@ -58,7 +74,7 @@ export default function HistoryPage() {
         verifiedNotes
       );
       if (res.success) {
-        alert("✔ Diagnostic label verified & logged to verified_dataset.csv!");
+        alert("✔ Diagnostic label verified & stored permanently in SQLite database!");
         setSelectedRecord(null);
         loadHistory();
       }
@@ -66,6 +82,42 @@ export default function HistoryPage() {
       alert("Verification logging failed: " + (err.response?.data?.detail || err.message));
     } finally {
       setVerifyLoading(false);
+    }
+  };
+
+  const handleBulkVerify = async () => {
+    const validRecords = history.filter(
+      (record): record is PredictionRecord & { id: number } => typeof record.id === "number"
+    );
+    if (validRecords.length === 0) {
+      alert("No valid records with IDs found to verify.");
+      return;
+    }
+    const confirm = window.confirm(
+      `Are you sure you want to verify all ${validRecords.length} records currently shown on this page using their predicted category & freshness score as defaults?`
+    );
+    if (!confirm) return;
+
+    setBulkLoading(true);
+    try {
+      const items = validRecords.map((record) => ({
+        prediction_id: record.id,
+        actual_category: record.category,
+        actual_freshness_score: record.freshness_score,
+        notes: "Bulk verified automatically",
+      }));
+      const res = await api.verifyPredictionsBulk(items);
+      if (res.success) {
+        alert(`✔ Bulk verification complete! Successfully verified ${res.success_count} records.`);
+        loadHistory();
+      } else {
+        alert(`Bulk verification partially failed: ${res.message}\nErrors: ${res.errors?.join("\n")}`);
+        loadHistory();
+      }
+    } catch (err: any) {
+      alert("Bulk verification failed: " + (err.response?.data?.detail || err.message));
+    } finally {
+      setBulkLoading(false);
     }
   };
 
@@ -120,7 +172,20 @@ export default function HistoryPage() {
             <option value="Spoiling">Spoiling</option>
           </select>
         </div>
-        <div className="ml-auto text-[10px] font-mono text-slate-500">
+
+        {/* Bulk verification action */}
+        {history.length > 0 && (
+          <button
+            onClick={handleBulkVerify}
+            disabled={bulkLoading}
+            className="flex items-center gap-1.5 px-3 py-1 bg-accent-green/10 border border-accent-green/20 hover:bg-accent-green/20 text-accent-green rounded text-[11px] font-mono font-bold transition-all disabled:opacity-50"
+          >
+            <CheckSquare size={12} />
+            <span>{bulkLoading ? "VERIFYING ALL..." : "VERIFY ALL ON PAGE"}</span>
+          </button>
+        )}
+
+        <div className="ml-auto text-[12px] font-mono text-slate-500">
           Showing {offset + 1} - {Math.min(offset + limit, total)} of {total} records
         </div>
       </div>
@@ -128,9 +193,9 @@ export default function HistoryPage() {
       {/* Table */}
       <div className="glass-panel rounded-2xl border border-slate-800/50 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full font-mono text-[10px] text-slate-300 text-left border-collapse">
+          <table className="w-full font-mono text-[12px] text-slate-300 text-left border-collapse">
             <thead>
-              <tr className="bg-slate-950/40 text-slate-500 border-b border-slate-900 uppercase tracking-wider text-[8px]">
+              <tr className="bg-slate-950/40 text-slate-500 border-b border-slate-900 uppercase tracking-wider text-[10px]">
                 <th className="p-3">ID</th>
                 <th className="p-3">TIMESTAMP</th>
                 <th className="p-3">TOMATO_ID</th>
@@ -148,7 +213,7 @@ export default function HistoryPage() {
                 history.map((row) => (
                   <tr key={row.id} className="hover:bg-slate-950/20">
                     <td className="p-3 font-semibold text-slate-400">db_{row.id}</td>
-                    <td className="p-3 text-slate-500">{new Date(row.timestamp).toLocaleTimeString()}</td>
+                    <td className="p-3 text-slate-500">{formatTimestamp(row.timestamp)}</td>
                     <td className="p-3 font-bold text-slate-400">{row.tomato_id || "N/A"}</td>
                     <td className="p-3">{row.position || "N/A"}</td>
                     <td className="p-3">{row.rvi.toFixed(2)}</td>
@@ -156,7 +221,7 @@ export default function HistoryPage() {
                     <td className="p-3 text-white font-bold">{row.freshness_score.toFixed(1)}</td>
                     <td className="p-3 text-slate-500">{row.model_version}</td>
                     <td className="p-3">
-                      <span className={`px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase ${
+                      <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-extrabold uppercase ${
                         row.category === "Fresh" ? "bg-emerald-500/10 text-emerald-400" :
                         row.category === "Aging" ? "bg-amber-500/10 text-amber-400" :
                         "bg-red-500/10 text-red-400"
@@ -167,7 +232,7 @@ export default function HistoryPage() {
                     <td className="p-3 text-right">
                       <button
                         onClick={() => handleOpenVerify(row)}
-                        className="flex items-center gap-1 ml-auto px-2.5 py-1 bg-slate-900 border border-slate-800 hover:border-accent-green hover:text-accent-green rounded text-[9px] font-mono font-bold transition-all"
+                        className="flex items-center gap-1 ml-auto px-2.5 py-1 bg-slate-900 border border-slate-800 hover:border-accent-green hover:text-accent-green rounded text-[11px] font-mono font-bold transition-all"
                       >
                         <CheckSquare size={10} />
                         <span>VERIFY</span>
@@ -187,7 +252,7 @@ export default function HistoryPage() {
         </div>
 
         {/* Pagination buttons */}
-        <div className="p-4 border-t border-slate-900 flex items-center justify-between font-mono text-[10px] text-slate-500">
+        <div className="p-4 border-t border-slate-900 flex items-center justify-between font-mono text-[12px] text-slate-500">
           <button
             onClick={handlePrevPage}
             disabled={offset === 0}

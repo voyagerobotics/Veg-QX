@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
-import { RotateCcw, AlertTriangle, Play, ChevronRight, CheckCircle2 } from "lucide-react";
+import { RotateCcw, AlertTriangle, Play, ChevronRight, CheckCircle2, Download, RefreshCw } from "lucide-react";
 
 export default function RetrainingPage() {
   const [step, setStep] = useState(1);
@@ -11,21 +11,95 @@ export default function RetrainingPage() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
 
+  // Dynamic dataset preview state
+  const [preview, setPreview] = useState<{
+    reference_samples: number;
+    verified_samples: number;
+    merged_samples: number;
+    fresh_count: number;
+    aging_count: number;
+    spoiling_count: number;
+    retraining_readiness: boolean;
+    remaining_required: number;
+  }>({
+    reference_samples: 100000,
+    verified_samples: 0,
+    merged_samples: 100000,
+    fresh_count: 0,
+    aging_count: 0,
+    spoiling_count: 0,
+    retraining_readiness: false,
+    remaining_required: 10,
+  });
+
+  // Real-time progress polling state
+  const [progress, setProgress] = useState<{
+    is_running: boolean;
+    step_name: string;
+    percentage: number;
+    error: string | null;
+  }>({
+    is_running: false,
+    step_name: "Idle",
+    percentage: 0,
+    error: null,
+  });
+
+  const loadPreview = async () => {
+    try {
+      const res = await api.getRetrainingPreview();
+      if (res.success) {
+        setPreview(res.data);
+      }
+    } catch (e) {
+      console.error("Error fetching retraining preview:", e);
+    }
+  };
+
+  useEffect(() => {
+    loadPreview();
+  }, []);
+
+  // Poll progress state while training is running
+  useEffect(() => {
+    let interval: any = null;
+    if (loading) {
+      interval = setInterval(async () => {
+        try {
+          const progRes = await api.getRetrainingProgress();
+          if (progRes.success) {
+            setProgress(progRes.data);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }, 500);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [loading]);
+
   const handleRetrain = async () => {
     setLoading(true);
     setError(null);
+    setProgress({ is_running: true, step_name: "Initializing Pipeline...", percentage: 5, error: null });
+
     try {
       const res = await api.retrainModel(notes);
       if (res.success) {
         setResult(res);
         setStep(3); // Go to evaluation results
+        loadPreview(); // Refresh preview to reflect dataset reset (0 verified active)
       } else {
         setError(res.error || "Retraining failed checks.");
         setStep(1);
+        loadPreview();
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Retraining runtime error.");
+      setError(err.response?.data?.detail || err.message || "Retraining runtime error.");
       setStep(1);
+      loadPreview();
     } finally {
       setLoading(false);
     }
@@ -34,31 +108,41 @@ export default function RetrainingPage() {
   return (
     <div className="space-y-8">
       {/* Title */}
-      <div className="border-b border-slate-900 pb-4">
-        <h2 className="text-2xl font-bold text-white font-mono tracking-wide uppercase flex items-center gap-2">
-          <RotateCcw size={24} className="text-accent-green animate-spin" style={{ animationDuration: "10s" }} />
-          Human-in-the-Loop Retraining Center
-        </h2>
-        <p className="text-xs text-slate-500 mt-1">
-          Module 10: Retrain your XGBoost models using accumulated human-verified diagnostics under strictly enforced safety gates.
-        </p>
+      <div className="border-b border-slate-900 pb-4 flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-white font-mono tracking-wide uppercase flex items-center gap-2">
+            <RotateCcw size={24} className="text-accent-green animate-spin" style={{ animationDuration: "10s" }} />
+            Human-in-the-Loop Retraining Center
+          </h2>
+          <p className="text-xs text-slate-500 mt-1">
+            Module 10: Retrain your XGBoost models using accumulated human-verified diagnostics under strictly enforced safety gates.
+          </p>
+        </div>
+        <a
+          href={api.getDownloadVerifiedCsvUrl()}
+          download
+          className="flex items-center gap-1.5 px-3 py-2 bg-accent-green/10 border border-accent-green/30 hover:bg-accent-green/20 text-accent-green rounded text-xs font-mono font-bold transition-all shadow-[0_0_10px_rgba(57,255,20,0.1)]"
+        >
+          <Download size={14} />
+          <span>DOWNLOAD VERIFIED DATASET</span>
+        </a>
       </div>
 
       {/* Retraining Stepper Interface */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 font-mono text-xs text-slate-500 border-b border-slate-900/60 pb-6">
-        <div className={`flex items-center gap-2 ${step === 1 ? "text-accent-green" : ""}`}>
+        <div className={`flex items-center gap-2 ${step === 1 ? "text-accent-green font-bold" : ""}`}>
           <span className={`w-5 h-5 rounded-full flex items-center justify-center border ${step === 1 ? "border-accent-green text-accent-green" : "border-slate-800"}`}>1</span>
-          <span>DATA READINESS</span>
+          <span>DATA READINESS & PREVIEW</span>
         </div>
         <ChevronRight size={14} className="hidden lg:block self-center" />
 
-        <div className={`flex items-center gap-2 ${step === 2 ? "text-accent-green" : ""}`}>
+        <div className={`flex items-center gap-2 ${step === 2 ? "text-accent-green font-bold" : ""}`}>
           <span className={`w-5 h-5 rounded-full flex items-center justify-center border ${step === 2 ? "border-accent-green text-accent-green" : "border-slate-800"}`}>2</span>
-          <span>TRIGGER RUN</span>
+          <span>TRIGGER RUN & PROGRESS</span>
         </div>
         <ChevronRight size={14} className="hidden lg:block self-center" />
 
-        <div className={`flex items-center gap-2 ${step === 3 ? "text-accent-green" : ""}`}>
+        <div className={`flex items-center gap-2 ${step === 3 ? "text-accent-green font-bold" : ""}`}>
           <span className={`w-5 h-5 rounded-full flex items-center justify-center border ${step === 3 ? "border-accent-green text-accent-green" : "border-slate-800"}`}>3</span>
           <span>EVALUATION AUDIT</span>
         </div>
@@ -74,23 +158,54 @@ export default function RetrainingPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* Step panels on left */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Step 1: Data Check */}
+          {/* Step 1: Data Check & Preview */}
           {step === 1 && (
             <div className="glass-panel rounded-2xl p-6 border border-slate-800/50 space-y-6">
-              <h3 className="text-sm font-semibold text-white font-mono uppercase tracking-wider">
-                Step 1: Dataset Verification checks
-              </h3>
-              <p className="text-xs text-slate-400 font-mono leading-relaxed">
-                Retraining requires combining the 100k reference dataset with newly logged data points inside verified_dataset.csv. Only human-verified positions are utilized to guarantee zero label contamination.
-              </p>
-              <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-900 font-mono text-[10px] space-y-2 text-slate-500">
-                <div>REFERENCE DATASET SIZE: <span className="text-white font-bold">100,000 samples</span></div>
-                <div>VERIFIED DATASET SIZE: <span className="text-white font-bold">Accumulating...</span></div>
-                <div>MINIMUM REQUIRED ACCUMULATION: <span className="text-accent-green font-bold">10 verified samples</span></div>
+              <div className="flex items-center justify-between border-b border-slate-900 pb-3">
+                <h3 className="text-sm font-semibold text-white font-mono uppercase tracking-wider">
+                  Step 1: Dataset Verification & Retraining Preview
+                </h3>
+                <button
+                  onClick={loadPreview}
+                  className="text-slate-400 hover:text-white transition-colors"
+                >
+                  <RefreshCw size={14} />
+                </button>
               </div>
+
+              <p className="text-xs text-slate-400 font-mono leading-relaxed">
+                Retraining combines the 100k reference dataset with newly logged human-verified data points stored in SQLite. Only active human-verified positions are utilized to guarantee zero label contamination.
+              </p>
+
+              {/* Dynamic Pre-retraining Breakdown Card */}
+              <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-900 font-mono text-[11px] space-y-2 text-slate-400">
+                <div className="flex justify-between border-b border-slate-900/60 pb-1.5">
+                  <span>REFERENCE DATASET SAMPLES:</span>
+                  <span className="text-white font-bold">{preview.reference_samples.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-900/60 pb-1.5">
+                  <span>VERIFIED DATASET SAMPLES (SQLITE):</span>
+                  <span className="text-accent-green font-bold">{preview.verified_samples}</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-900/60 pb-1.5 text-[10px] pl-4 text-slate-500">
+                  <span>↳ FRESH: {preview.fresh_count} | AGING: {preview.aging_count} | SPOILING: {preview.spoiling_count}</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-900/60 pb-1.5">
+                  <span>COMBINED RETRAINING DATASET TOTAL:</span>
+                  <span className="text-white font-bold">{preview.merged_samples.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between pt-1">
+                  <span>MINIMUM REQUIRED ACCUMULATION:</span>
+                  <span className={preview.retraining_readiness ? "text-accent-green font-bold" : "text-amber-400 font-bold"}>
+                    {preview.retraining_readiness ? "READY (≥ 10 SAMPLES)" : `INSUFFICIENT DATA (${preview.remaining_required} NEEDED)`}
+                  </span>
+                </div>
+              </div>
+
               <button
                 onClick={() => setStep(2)}
-                className="flex items-center justify-center gap-2 bg-accent-green text-slate-950 font-semibold py-2.5 px-6 rounded-lg text-xs font-mono shadow-[0_0_15px_rgba(57,255,20,0.15)]"
+                disabled={!preview.retraining_readiness}
+                className="flex items-center justify-center gap-2 bg-accent-green text-slate-950 font-semibold py-2.5 px-6 rounded-lg text-xs font-mono shadow-[0_0_15px_rgba(57,255,20,0.15)] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span>PROCEED TO RETRAIN</span>
                 <ChevronRight size={14} />
@@ -98,79 +213,120 @@ export default function RetrainingPage() {
             </div>
           )}
 
-          {/* Step 2: Trigger Retrain */}
+          {/* Step 2: Trigger Retrain & Real-Time Progress */}
           {step === 2 && (
             <div className="glass-panel rounded-2xl p-6 border border-slate-800/50 space-y-6">
-              <h3 className="text-sm font-semibold text-white font-mono uppercase tracking-wider">
+              <h3 className="text-sm font-semibold text-white font-mono uppercase tracking-wider border-b border-slate-900 pb-3">
                 Step 2: Initialize Retraining Pipeline
               </h3>
-              <div className="space-y-4 font-mono text-xs">
-                <div>
-                  <label className="block mb-1.5 uppercase tracking-widest text-slate-500 text-[9px]">Retraining Run Notes</label>
-                  <textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="e.g. Retraining pipeline v1.2 with real-world greenhouse tomato sensor logs."
-                    rows={4}
-                    className="w-full bg-slate-900 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200 outline-none focus:border-accent-green placeholder:text-slate-650"
-                  />
-                </div>
-              </div>
 
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setStep(1)}
-                  className="px-4 py-2.5 bg-slate-900 border border-slate-800 text-slate-400 hover:text-white rounded-lg text-xs font-mono"
-                >
-                  BACK
-                </button>
-                <button
-                  onClick={handleRetrain}
-                  disabled={loading}
-                  className="flex-1 flex items-center justify-center gap-2 bg-accent-green text-slate-950 font-semibold py-2.5 rounded-lg text-xs font-mono shadow-[0_0_15px_rgba(57,255,20,0.15)] disabled:opacity-50"
-                >
-                  <Play size={12} />
-                  <span>{loading ? "TRAINING XGBOOST..." : "RUN CONTINUOUS LEARNING RUN"}</span>
-                </button>
-              </div>
+              {loading ? (
+                /* Real-Time Progress Bar Component */
+                <div className="space-y-4 font-mono">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-300 animate-pulse flex items-center gap-2">
+                      <RotateCcw size={14} className="animate-spin text-accent-green" />
+                      {progress.step_name || "Training in progress..."}
+                    </span>
+                    <span className="text-accent-green font-bold">{progress.percentage}%</span>
+                  </div>
+                  
+                  {/* Progress track */}
+                  <div className="w-full h-3 bg-slate-900 rounded-full overflow-hidden border border-slate-800 p-0.5">
+                    <div
+                      className="h-full bg-accent-green rounded-full transition-all duration-300 shadow-[0_0_10px_rgba(57,255,20,0.5)]"
+                      style={{ width: `${progress.percentage}%` }}
+                    />
+                  </div>
+
+                  <p className="text-[10px] text-slate-500 text-center">
+                    Please keep this page open. Retraining model under atomic locks and evaluating performance limits...
+                  </p>
+                </div>
+              ) : (
+                /* Inputs Form */
+                <div className="space-y-4 font-mono text-xs">
+                  <div>
+                    <label className="block mb-1.5 uppercase tracking-widest text-slate-500 text-[9px]">Retraining Run Notes</label>
+                    <textarea
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="e.g. Retraining pipeline v1.2 with real-world greenhouse tomato sensor logs."
+                      rows={4}
+                      className="w-full bg-slate-900 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200 outline-none focus:border-accent-green placeholder:text-slate-650"
+                    />
+                  </div>
+
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => setStep(1)}
+                      className="px-4 py-2.5 bg-slate-900 border border-slate-800 text-slate-400 hover:text-white rounded-lg text-xs font-mono"
+                    >
+                      BACK
+                    </button>
+                    <button
+                      onClick={handleRetrain}
+                      disabled={loading}
+                      className="flex-1 flex items-center justify-center gap-2 bg-accent-green text-slate-950 font-semibold py-2.5 rounded-lg text-xs font-mono shadow-[0_0_15px_rgba(57,255,20,0.15)] disabled:opacity-50"
+                    >
+                      <Play size={12} />
+                      <span>START CONTINUOUS LEARNING RUN</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Step 3: Evaluation results */}
+          {/* Step 3: Comprehensive Evaluation Results */}
           {step === 3 && result && (
             <div className="glass-panel rounded-2xl p-6 border border-slate-800/50 space-y-6">
               <div className="flex items-center gap-2 border-b border-slate-900 pb-3 text-accent-green">
                 <CheckCircle2 size={18} />
                 <h3 className="text-sm font-semibold text-white font-mono uppercase tracking-wider">
-                  Retraining Successful. Active Model Bumped!
+                  Retraining Successful. Active Model Bumped to {result.new_version}!
                 </h3>
               </div>
 
               <p className="text-xs text-slate-400 font-mono leading-relaxed">
-                The retrained pipeline model passed all safety performance checks (R² ≥ 0.85). Model parameters were successfully compiled and version **{result.new_version}** has been deployed to the inference pipeline.
+                The retrained pipeline model passed all safety performance checks (R² ≥ 0.85). Model parameters were compiled, verified, deployed to production endpoints, and verified training samples were archived.
               </p>
 
-              {/* Side-by-Side Model comparison */}
+              {/* Side-by-Side Model comparison & Full Audit Metrics */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 font-mono">
                 {/* Previous model */}
                 <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-900 space-y-3">
-                  <span className="text-[9px] uppercase tracking-widest text-slate-500">PREVIOUS MODEL ({result.base_version})</span>
+                  <span className="text-[9px] uppercase tracking-widest text-slate-500 block border-b border-slate-900 pb-1">
+                    PREVIOUS MODEL ({result.base_version})
+                  </span>
                   <div className="space-y-1 text-xs">
-                    <div>ACCURACY: <span className="text-white">{(result.metrics.old_accuracy * 100).toFixed(2)}%</span></div>
-                    <div>REGRESSION R²: <span className="text-white">{result.metrics.old_r2.toFixed(4)}</span></div>
+                    <div>CLASSIFICATION ACCURACY: <span className="text-white">{(result.metrics.old_accuracy * 100).toFixed(2)}%</span></div>
+                    <div>REGRESSION R² SCORE: <span className="text-white">{result.metrics.old_r2.toFixed(4)}</span></div>
                   </div>
                 </div>
 
                 {/* New model */}
                 <div className="bg-emerald-950/20 p-4 rounded-xl border border-emerald-900/30 space-y-3">
-                  <span className="text-[9px] uppercase tracking-widest text-accent-green">NEW MODEL ({result.new_version})</span>
+                  <span className="text-[9px] uppercase tracking-widest text-accent-green block border-b border-emerald-900/40 pb-1 font-bold">
+                    DEPLOYED MODEL ({result.new_version})
+                  </span>
                   <div className="space-y-1 text-xs">
                     <div>ACCURACY: <span className="text-accent-green font-bold">{(result.metrics.new_accuracy * 100).toFixed(2)}%</span></div>
                     <div>REGRESSION R²: <span className="text-accent-green font-bold">{result.metrics.new_r2.toFixed(4)}</span></div>
+                    {result.metrics.f1 && <div>F1 SCORE: <span className="text-slate-300">{(result.metrics.f1 * 100).toFixed(2)}%</span></div>}
+                    {result.metrics.precision && <div>PRECISION: <span className="text-slate-300">{(result.metrics.precision * 100).toFixed(2)}%</span></div>}
+                    {result.metrics.recall && <div>RECALL: <span className="text-slate-300">{(result.metrics.recall * 100).toFixed(2)}%</span></div>}
                     {result.metrics.mae && <div>MAE: <span className="text-slate-400">{result.metrics.mae.toFixed(4)}</span></div>}
+                    {result.metrics.rmse && <div>RMSE: <span className="text-slate-400">{result.metrics.rmse.toFixed(4)}</span></div>}
                   </div>
                 </div>
               </div>
+
+              {result.snapshot_path && (
+                <div className="p-3 bg-slate-950/80 border border-slate-900 rounded-lg text-[10px] font-mono text-slate-500 truncate">
+                  IMMUTABLE DATASET SNAPSHOT: <span className="text-slate-300">{result.snapshot_path}</span>
+                </div>
+              )}
 
               <button
                 onClick={() => {
@@ -205,9 +361,14 @@ export default function RetrainingPage() {
               <span className="text-accent-yellow font-bold block">03 / NO AUTO RETRAIN</span>
               <p>ML models are never automatically updated on predictions. Triggering runs requires human interaction.</p>
             </div>
+            <div>
+              <span className="text-accent-yellow font-bold block">04 / AUTOMATIC ROLLBACK</span>
+              <p>If candidate model fails performance limits, previous active model remains deployed and verified queue is preserved.</p>
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
 }
+

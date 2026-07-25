@@ -21,11 +21,27 @@ export default function PredictionPage() {
     Orange: 80.0,
     Red: 62.0,
     NIR: 94.0,
-    tomato_id: 10001,
+    tomato_id: 1001,
     position: 1,
   });
   const [singleResult, setSingleResult] = useState<any>(null);
   const [singleLoading, setSingleLoading] = useState(false);
+
+  const fetchNextTomatoId = async () => {
+    try {
+      const res = await api.getNextTomatoId();
+      if (res.success && res.next_tomato_id) {
+        setSingleInput((prev) => ({ ...prev, tomato_id: res.next_tomato_id }));
+        setMultiTomatoId(res.next_tomato_id);
+      }
+    } catch (e) {
+      console.error("Error fetching next Tomato ID:", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchNextTomatoId();
+  }, []);
 
   const handleSingleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,12 +52,14 @@ export default function PredictionPage() {
         input_source: "manual",
       });
       setSingleResult(res);
+      fetchNextTomatoId();
     } catch (err: any) {
       alert("Error calculating prediction: " + (err.response?.data?.detail || err.message));
     } finally {
       setSingleLoading(false);
     }
   };
+
 
   // ───────────────────────────────────────────────────────────────────────────
   // Tab 2: Multi-Position Tomato State & Logic (Module 6)
@@ -80,6 +98,7 @@ export default function PredictionPage() {
       }));
       const res = await api.predictBatch(readings);
       setMultiResult(res);
+      fetchNextTomatoId();
     } catch (err: any) {
       alert("Batch prediction failed: " + (err.response?.data?.detail || err.message));
     } finally {

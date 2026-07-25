@@ -14,9 +14,20 @@ from models.prediction import (
     BatchPredictionResponse,
 )
 from services.inference_service import get_inference_service, InferenceService
-from services.database_service import save_prediction
+from services.database_service import save_prediction, get_next_tomato_id
 
 router = APIRouter(prefix="", tags=["Predictions"])
+
+
+@router.get("/tomato_id/next")
+def get_next_available_tomato_id():
+    """Returns the next unique database-managed Tomato ID."""
+    try:
+        next_id = get_next_tomato_id()
+        return {"success": True, "next_tomato_id": next_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @router.post("/predict", response_model=PredictionResponse)

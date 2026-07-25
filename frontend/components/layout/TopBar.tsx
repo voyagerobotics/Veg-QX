@@ -70,17 +70,17 @@ export default function TopBar({ isSidebarOpen = true, onToggleSidebar }: TopBar
             className="p-1 hover:bg-slate-900/80 rounded text-accent-green hover:text-white transition-all mr-1 flex items-center justify-center border border-slate-800/40"
             title="Open Navigation Panel"
           >
-            <Menu size={14} />
+            <Menu size={16} />
           </button>
         )}
         <div className="flex items-center gap-1.5 border-r border-slate-900 pr-4">
-          <Radio size={14} className="text-accent-green animate-pulse" />
+          <Radio size={16} className="text-accent-green animate-pulse" />
           <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
             Telemetry Ribbon
           </span>
         </div>
         <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
-          <Clock size={12} className="text-accent-blue" />
+          <Clock size={14} className="text-accent-blue" />
           <span className="text-slate-400 font-bold">{missionTime || "CALIBRATING TIME..."}</span>
         </div>
       </div>
@@ -146,7 +146,7 @@ export default function TopBar({ isSidebarOpen = true, onToggleSidebar }: TopBar
           disabled={loading}
           className="text-slate-500 hover:text-slate-350 transition-colors pl-2"
         >
-          <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
+          <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
         </button>
       </div>
     </header>

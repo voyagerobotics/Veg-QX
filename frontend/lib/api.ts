@@ -26,6 +26,12 @@ export const api = {
     return res.data;
   },
 
+  // Tomato ID Generator
+  getNextTomatoId: async (): Promise<{ success: boolean; next_tomato_id: number }> => {
+    const res = await client.get("/tomato_id/next");
+    return res.data;
+  },
+
   // USB / Sensor controls
   connectUSB: async (port?: string): Promise<{ success: boolean; data: any; error?: string }> => {
     const res = await client.post(`/connect_usb${port ? `?port=${port}` : ""}`);
@@ -126,6 +132,46 @@ export const api = {
     return res.data;
   },
 
+  verifyPredictionsBulk: async (
+    items: Array<{
+      prediction_id: number;
+      actual_category: string;
+      actual_freshness_score: number;
+      notes?: string;
+    }>
+  ): Promise<{ success: boolean; success_count: number; message: string; errors?: string[] }> => {
+    const res = await client.post("/verify_prediction/bulk", { items });
+    return res.data;
+  },
+
+  getVerificationStats: async (): Promise<{
+    success: boolean;
+    data: {
+      total_audited_samples: number;
+      fresh_count: number;
+      aging_count: number;
+      spoiling_count: number;
+      retraining_readiness: boolean;
+      remaining_samples_required: number;
+    };
+  }> => {
+    const res = await client.get("/verify_prediction/stats");
+    return res.data;
+  },
+
+  getVerificationHistory: async (): Promise<{
+    success: boolean;
+    total: number;
+    data: any[];
+  }> => {
+    const res = await client.get("/verify_prediction/history");
+    return res.data;
+  },
+
+  getDownloadVerifiedCsvUrl: (): string => {
+    return `${API_BASE_URL}/verify_prediction/download_csv`;
+  },
+
   // Model Retraining & Info
   getmodelInfo: async (): Promise<{ success: boolean; data: ModelInfo }> => {
     const res = await client.get("/model_information");
@@ -134,6 +180,36 @@ export const api = {
 
   getModelVersions: async (): Promise<{ success: boolean; data: ModelVersion[] }> => {
     const res = await client.get("/model_versions");
+    return res.data;
+  },
+
+  getRetrainingPreview: async (): Promise<{
+    success: boolean;
+    data: {
+      reference_samples: number;
+      verified_samples: number;
+      merged_samples: number;
+      fresh_count: number;
+      aging_count: number;
+      spoiling_count: number;
+      retraining_readiness: boolean;
+      remaining_required: number;
+    };
+  }> => {
+    const res = await client.get("/retrain_model/preview");
+    return res.data;
+  },
+
+  getRetrainingProgress: async (): Promise<{
+    success: boolean;
+    data: {
+      is_running: boolean;
+      step_name: string;
+      percentage: number;
+      error: string | null;
+    };
+  }> => {
+    const res = await client.get("/retrain_model/progress");
     return res.data;
   },
 
@@ -148,3 +224,4 @@ export const api = {
     return res.data;
   },
 };
+

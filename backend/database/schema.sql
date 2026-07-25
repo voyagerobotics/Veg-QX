@@ -1,4 +1,5 @@
 -- schema.sql
+
 -- SQLite schema for Tomato Freshness Detection System
 -- Modular design: food_type column supports future food products
 
@@ -38,32 +39,72 @@ CREATE TABLE IF NOT EXISTS predictions (
     confidence_aging    REAL,
     confidence_spoiling REAL,
 
-    -- Metadata
+    -- Metadata & System Telemetry
     model_version       TEXT,
-    input_source        TEXT    DEFAULT 'manual'   -- 'usb' | 'csv_upload' | 'manual'
+    input_source        TEXT    DEFAULT 'manual',   -- 'usb' | 'csv_upload' | 'manual'
+    status              TEXT    NOT NULL DEFAULT 'PENDING', -- 'PENDING' | 'VERIFIED' | 'RETRAINED' | 'ARCHIVED'
+    software_version    TEXT    DEFAULT '1.1',
+    firmware_version    TEXT    DEFAULT 'v2.0',
+    sensor_type         TEXT    DEFAULT 'AS7341',
+    device_id           TEXT    DEFAULT 'ESP32_01'
 );
 
 CREATE INDEX IF NOT EXISTS idx_predictions_timestamp  ON predictions(timestamp);
 CREATE INDEX IF NOT EXISTS idx_predictions_tomato_id  ON predictions(tomato_id);
 CREATE INDEX IF NOT EXISTS idx_predictions_food_type  ON predictions(food_type);
 CREATE INDEX IF NOT EXISTS idx_predictions_category   ON predictions(category);
+CREATE INDEX IF NOT EXISTS idx_predictions_status     ON predictions(status);
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 2. verified_predictions
---    Human-verified labels for model retraining. Only verified data is used.
+--    Complete human-verified records for model retraining.
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS verified_predictions (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
     prediction_id           INTEGER NOT NULL REFERENCES predictions(id),
     verified_at             TEXT    NOT NULL DEFAULT (datetime('now')),
+    
+    -- Identification
+    tomato_id               INTEGER,
+    position                INTEGER,
+    timestamp               TEXT,
+
+    -- Raw spectral features
+    blue                    REAL,
+    green                   REAL,
+    yellow                  REAL,
+    orange                  REAL,
+    red                     REAL,
+    nir                     REAL,
+
+    -- Vegetation indices
+    ndvi                    REAL,
+    gndvi                   REAL,
+    rvi                     REAL,
+
+    -- Model outputs during prediction
+    freshness_score         REAL,
+    predicted_category      TEXT,
+    confidence_fresh        REAL,
+    confidence_aging        REAL,
+    confidence_spoiling     REAL,
+
+    -- Human verified ground truth
     actual_category         TEXT    NOT NULL,
     actual_freshness_score  REAL,
     verified_by             TEXT    DEFAULT 'user',
-    notes                   TEXT
+    notes                   TEXT,
+
+    -- Lineage metadata
+    model_version           TEXT,
+    input_source            TEXT    DEFAULT 'manual',
+    status                  TEXT    NOT NULL DEFAULT 'ACTIVE', -- 'ACTIVE' | 'RETRAINED' | 'ARCHIVED'
+    retraining_run_id       INTEGER
 );
 
 CREATE INDEX IF NOT EXISTS idx_verified_prediction_id ON verified_predictions(prediction_id);
 CREATE INDEX IF NOT EXISTS idx_verified_at            ON verified_predictions(verified_at);
+CREATE INDEX IF NOT EXISTS idx_verified_status           ON verified_predictions(status);
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 3. model_versions
@@ -101,10 +142,19 @@ CREATE TABLE IF NOT EXISTS retraining_runs (
     base_version            TEXT,
     new_version             TEXT,
     training_samples        INTEGER,
+    reference_samples       INTEGER,
     verified_samples        INTEGER,
-    new_accuracy            REAL,
-    new_r2                  REAL,
-    performance_check_passed INTEGER DEFAULT 0,
-    deployed                 INTEGER DEFAULT 0,
+    accuracy                REAL,
+    precision               REAL,
+    recall                  REAL,
+    f1                      REAL,
+    r2                      REAL,
+    mae                     REAL,
+    rmse                    REAL,
+    training_duration_sec   REAL,
+    status                  TEXT    DEFAULT 'RUNNING', -- 'RUNNING' | 'SUCCESS' | 'FAILED_PERFORMANCE_GATE' | 'ERROR'
+    snapshot_path           TEXT,
+    deployed                INTEGER DEFAULT 0,
     notes                   TEXT
 );
+

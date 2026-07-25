@@ -1,25 +1,30 @@
 """
 services/database_service.py
-SQLite CRUD operations. Every prediction is written to both SQLite and CSV (dual storage).
+SQLite CRUD operations. SQLite is the single source of truth for all prediction,
+verification, and model versioning data in the Tomato Freshness Detection System.
 """
 import sqlite3
 import csv
+import io
 import os
 from pathlib import Path
 from datetime import datetime
 from contextlib import contextmanager
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 from config import (
     PREDICTION_HISTORY_DB,
     PREDICTION_HISTORY_CSV,
     VERIFIED_DATASET_CSV,
+    DATASETS_DIR,
 )
 
 SCHEMA_PATH = Path(__file__).parent.parent / "database" / "schema.sql"
+SNAPSHOTS_DIR = DATASETS_DIR / "snapshots"
+SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
-# ─── Connection ───────────────────────────────────────────────────────────────
+# ─── Connection & Transactions ────────────────────────────────────────────────
 
 def get_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(str(PREDICTION_HISTORY_DB))
@@ -31,6 +36,10 @@ def get_connection() -> sqlite3.Connection:
 
 @contextmanager
 def db_context():
+    """
+    Context manager for database connections ensuring atomic transactions.
+    Rolls back automatically on failure and commits on success.
+    """
     conn = get_connection()
     try:
         yield conn
@@ -42,14 +51,73 @@ def db_context():
         conn.close()
 
 
+def _migrate_database_schema(conn: sqlite3.Connection):
+    """Safely apply column additions for existing databases without breaking data."""
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA table_info(predictions)")
+    pred_cols = [row["name"] for row in cursor.fetchall()]
+    
+    if "status" not in pred_cols:
+        cursor.execute("ALTER TABLE predictions ADD COLUMN status TEXT NOT NULL DEFAULT 'PENDING'")
+    if "software_version" not in pred_cols:
+        cursor.execute("ALTER TABLE predictions ADD COLUMN software_version TEXT DEFAULT '1.1'")
+    if "firmware_version" not in pred_cols:
+        cursor.execute("ALTER TABLE predictions ADD COLUMN firmware_version TEXT DEFAULT 'v2.0'")
+    if "sensor_type" not in pred_cols:
+        cursor.execute("ALTER TABLE predictions ADD COLUMN sensor_type TEXT DEFAULT 'AS7341'")
+    if "device_id" not in pred_cols:
+        cursor.execute("ALTER TABLE predictions ADD COLUMN device_id TEXT DEFAULT 'ESP32_01'")
+
+    cursor.execute("PRAGMA table_info(verified_predictions)")
+    ver_cols = [row["name"] for row in cursor.fetchall()]
+    if "blue" not in ver_cols:
+        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN blue REAL")
+        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN green REAL")
+        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN yellow REAL")
+        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN orange REAL")
+        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN red REAL")
+        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN nir REAL")
+        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN ndvi REAL")
+        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN gndvi REAL")
+        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN rvi REAL")
+        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN freshness_score REAL")
+        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN predicted_category TEXT")
+        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN confidence_fresh REAL")
+        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN confidence_aging REAL")
+        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN confidence_spoiling REAL")
+        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN tomato_id INTEGER")
+        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN position INTEGER")
+        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN timestamp TEXT")
+        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN model_version TEXT")
+        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN input_source TEXT DEFAULT 'manual'")
+        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN status TEXT NOT NULL DEFAULT 'ACTIVE'")
+        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN retraining_run_id INTEGER")
+
+
 def init_database():
-    """Create all tables if they don't exist. Run once on startup."""
+    """Create all tables if they don't exist and run migrations. Run once on startup."""
     schema_sql = SCHEMA_PATH.read_text(encoding="utf-8")
     with db_context() as conn:
         conn.executescript(schema_sql)
-    # Ensure CSV headers exist
+        _migrate_database_schema(conn)
     _ensure_prediction_csv_header()
     _ensure_verified_csv_header()
+
+
+# ─── Tomato ID Generator ─────────────────────────────────────────────────────
+
+def get_next_tomato_id() -> int:
+    """
+    Returns the next available unique Tomato_ID managed directly by SQLite.
+    Persists across application restarts.
+    """
+    with db_context() as conn:
+        r1 = conn.execute("SELECT MAX(tomato_id) as max_id FROM predictions").fetchone()
+        r2 = conn.execute("SELECT MAX(tomato_id) as max_id FROM verified_predictions").fetchone()
+        m1 = r1["max_id"] if r1 and r1["max_id"] is not None else 0
+        m2 = r2["max_id"] if r2 and r2["max_id"] is not None else 0
+        current_max = max(m1, m2, 1000)
+        return current_max + 1
 
 
 # ─── Prediction CRUD ─────────────────────────────────────────────────────────
@@ -57,8 +125,13 @@ def init_database():
 def save_prediction(data: dict) -> int:
     """
     Insert a prediction record into SQLite and append to CSV.
+    Assigns a database-managed tomato_id if none is provided.
     Returns the new row ID.
     """
+    tomato_id = data.get("tomato_id")
+    if not tomato_id:
+        tomato_id = get_next_tomato_id()
+
     sql = """
     INSERT INTO predictions (
         timestamp, food_type, tomato_id, position,
@@ -66,21 +139,23 @@ def save_prediction(data: dict) -> int:
         ndvi, gndvi, rvi,
         freshness_score, category,
         confidence_fresh, confidence_aging, confidence_spoiling,
-        model_version, input_source
+        model_version, input_source, status,
+        software_version, firmware_version, sensor_type, device_id
     ) VALUES (
         :timestamp, :food_type, :tomato_id, :position,
         :blue, :green, :yellow, :orange, :red, :nir,
         :ndvi, :gndvi, :rvi,
         :freshness_score, :category,
         :confidence_fresh, :confidence_aging, :confidence_spoiling,
-        :model_version, :input_source
+        :model_version, :input_source, 'PENDING',
+        :software_version, :firmware_version, :sensor_type, :device_id
     )
     """
     row = {
         "timestamp":            data.get("timestamp", datetime.utcnow().isoformat()),
         "food_type":            data.get("food_type", "tomato"),
-        "tomato_id":            data.get("tomato_id"),
-        "position":             data.get("position"),
+        "tomato_id":            tomato_id,
+        "position":             data.get("position", 1),
         "blue":                 data.get("Blue"),
         "green":                data.get("Green"),
         "yellow":               data.get("Yellow"),
@@ -97,6 +172,10 @@ def save_prediction(data: dict) -> int:
         "confidence_spoiling":  data.get("confidence_spoiling"),
         "model_version":        data.get("model_version"),
         "input_source":         data.get("input_source", "manual"),
+        "software_version":     data.get("software_version", "1.1"),
+        "firmware_version":     data.get("firmware_version", "v2.0"),
+        "sensor_type":          data.get("sensor_type", "AS7341"),
+        "device_id":            data.get("device_id", "ESP32_01"),
     }
     with db_context() as conn:
         cursor = conn.execute(sql, row)
@@ -112,9 +191,11 @@ def get_prediction_history(
     limit: int = 100,
     offset: int = 0,
     category: Optional[str] = None,
+    status: str = "PENDING",
 ) -> list[dict]:
-    filters = ["food_type = :food_type"]
-    params: dict = {"food_type": food_type, "limit": limit, "offset": offset}
+    """Returns only pending (unverified) predictions by default."""
+    filters = ["food_type = :food_type", "status = :status"]
+    params: dict = {"food_type": food_type, "status": status, "limit": limit, "offset": offset}
 
     if category:
         filters.append("category = :category")
@@ -132,12 +213,13 @@ def get_prediction_history(
     return [dict(r) for r in rows]
 
 
-def get_prediction_count(food_type: str = "tomato") -> int:
+def get_prediction_count(food_type: str = "tomato", status: str = "PENDING") -> int:
     with db_context() as conn:
         row = conn.execute(
-            "SELECT COUNT(*) as cnt FROM predictions WHERE food_type = ?", (food_type,)
+            "SELECT COUNT(*) as cnt FROM predictions WHERE food_type = ? AND status = ?",
+            (food_type, status)
         ).fetchone()
-    return row["cnt"]
+    return row["cnt"] if row else 0
 
 
 def get_prediction_by_id(prediction_id: int) -> Optional[dict]:
@@ -148,36 +230,198 @@ def get_prediction_by_id(prediction_id: int) -> Optional[dict]:
     return dict(row) if row else None
 
 
-# ─── Verification ─────────────────────────────────────────────────────────────
+# ─── Verification & Atomic Transactions ─────────────────────────────────────
 
-def save_verification(prediction_id: int, actual_category: str,
-                      actual_freshness: Optional[float] = None,
-                      notes: Optional[str] = None) -> int:
-    sql = """
-    INSERT INTO verified_predictions (prediction_id, actual_category, actual_freshness_score, notes)
-    VALUES (?, ?, ?, ?)
+def save_verification(
+    prediction_id: int,
+    actual_category: str,
+    actual_freshness: Optional[float] = None,
+    notes: Optional[str] = None,
+    verified_by: str = "user",
+) -> int:
+    """
+    Atomic transaction:
+    1. Fetches complete prediction record.
+    2. Checks duplicate verification status (rejects if not PENDING).
+    3. Saves complete feature vector to verified_predictions table.
+    4. Updates predictions status to 'VERIFIED'.
     """
     with db_context() as conn:
-        cursor = conn.execute(sql, (prediction_id, actual_category, actual_freshness, notes))
-        row_id = cursor.lastrowid
+        pred_row = conn.execute(
+            "SELECT * FROM predictions WHERE id = ?", (prediction_id,)
+        ).fetchone()
 
-    # Get original prediction for CSV
-    pred = get_prediction_by_id(prediction_id)
-    if pred:
+        if not pred_row:
+            raise ValueError(f"Prediction ID {prediction_id} not found.")
+
+        pred = dict(pred_row)
+        if pred.get("status") != "PENDING":
+            raise ValueError(f"Prediction ID {prediction_id} has already been verified or archived (status: {pred.get('status')}).")
+
+        score = actual_freshness if actual_freshness is not None else pred.get("freshness_score")
+
+        insert_sql = """
+        INSERT INTO verified_predictions (
+            prediction_id, verified_at, tomato_id, position, timestamp,
+            blue, green, yellow, orange, red, nir,
+            ndvi, gndvi, rvi,
+            freshness_score, predicted_category,
+            confidence_fresh, confidence_aging, confidence_spoiling,
+            actual_category, actual_freshness_score, verified_by, notes,
+            model_version, input_source, status
+        ) VALUES (
+            :prediction_id, datetime('now'), :tomato_id, :position, :timestamp,
+            :blue, :green, :yellow, :orange, :red, :nir,
+            :ndvi, :gndvi, :rvi,
+            :freshness_score, :predicted_category,
+            :confidence_fresh, :confidence_aging, :confidence_spoiling,
+            :actual_category, :actual_freshness_score, :verified_by, :notes,
+            :model_version, :input_source, 'ACTIVE'
+        )
+        """
+        verified_data = {
+            "prediction_id":          prediction_id,
+            "tomato_id":              pred.get("tomato_id"),
+            "position":               pred.get("position"),
+            "timestamp":              pred.get("timestamp"),
+            "blue":                   pred.get("blue"),
+            "green":                  pred.get("green"),
+            "yellow":                 pred.get("yellow"),
+            "orange":                 pred.get("orange"),
+            "red":                    pred.get("red"),
+            "nir":                    pred.get("nir"),
+            "ndvi":                   pred.get("ndvi"),
+            "gndvi":                  pred.get("gndvi"),
+            "rvi":                    pred.get("rvi"),
+            "freshness_score":        pred.get("freshness_score"),
+            "predicted_category":     pred.get("category"),
+            "confidence_fresh":       pred.get("confidence_fresh"),
+            "confidence_aging":       pred.get("confidence_aging"),
+            "confidence_spoiling":    pred.get("confidence_spoiling"),
+            "actual_category":        actual_category,
+            "actual_freshness_score": score,
+            "verified_by":            verified_by,
+            "notes":                  notes,
+            "model_version":          pred.get("model_version"),
+            "input_source":           pred.get("input_source", "manual"),
+        }
+        cursor = conn.execute(insert_sql, verified_data)
+        v_id = cursor.lastrowid
+
+        # Mark prediction as VERIFIED in predictions table
+        conn.execute("UPDATE predictions SET status = 'VERIFIED' WHERE id = ?", (prediction_id,))
+
+        # Dual-write CSV backup
         _append_verified_csv({
             **pred,
             "actual_category": actual_category,
-            "actual_freshness_score": actual_freshness,
+            "actual_freshness_score": score,
             "verified_at": datetime.utcnow().isoformat(),
             "notes": notes,
         })
-    return row_id
+
+        return v_id
 
 
-def get_verified_count() -> int:
+def get_verification_stats() -> dict:
+    """Returns dynamic statistics calculated directly from SQLite active verified records."""
     with db_context() as conn:
-        row = conn.execute("SELECT COUNT(*) as cnt FROM verified_predictions").fetchone()
-    return row["cnt"]
+        total = conn.execute("SELECT COUNT(*) as cnt FROM verified_predictions WHERE status = 'ACTIVE'").fetchone()["cnt"]
+        dist_rows = conn.execute("""
+            SELECT actual_category, COUNT(*) as cnt
+            FROM verified_predictions
+            WHERE status = 'ACTIVE'
+            GROUP BY actual_category
+        """).fetchall()
+
+    dist = {r["actual_category"]: r["cnt"] for r in dist_rows}
+    fresh = dist.get("Fresh", 0)
+    aging = dist.get("Aging", 0)
+    spoiling = dist.get("Spoiling", 0)
+
+    return {
+        "total_audited_samples": total,
+        "fresh_count": fresh,
+        "aging_count": aging,
+        "spoiling_count": spoiling,
+        "retraining_readiness": total >= 10,
+        "remaining_samples_required": max(0, 10 - total),
+    }
+
+
+def get_verified_predictions_active() -> list[dict]:
+    """Returns all active (unarchived) verified records from SQLite for audit and retraining."""
+    with db_context() as conn:
+        rows = conn.execute("""
+            SELECT * FROM verified_predictions
+            WHERE status = 'ACTIVE'
+            ORDER BY verified_at DESC
+        """).fetchall()
+    return [dict(r) for r in rows]
+
+
+def archive_verified_predictions(retraining_run_id: int) -> None:
+    """
+    Executed ONLY after a new model has been successfully trained, evaluated,
+    saved, load-verified, and set active in production.
+    Archives the current verified training batch and resets active queue to 0.
+    """
+    with db_context() as conn:
+        conn.execute("""
+            UPDATE verified_predictions
+            SET status = 'RETRAINED', retraining_run_id = ?
+            WHERE status = 'ACTIVE'
+        """, (retraining_run_id,))
+
+        conn.execute("""
+            UPDATE predictions
+            SET status = 'RETRAINED'
+            WHERE status = 'VERIFIED'
+        """)
+
+
+# ─── Dynamic CSV Export & Snapshots ──────────────────────────────────────────
+
+def generate_verified_dataset_csv() -> str:
+    """
+    Dynamically generates the retraining CSV content directly from SQLite verified_predictions.
+    Preserves exact column header and order expected by reference dataset.
+    """
+    active_records = get_verified_predictions_active()
+    output = io.StringIO()
+    headers = [
+        "Tomato_ID", "Tomato_position", "Blue", "Green", "Yellow", "Orange",
+        "Red", "NIR", "NDVI", "GNDVI", "RVI", "Freshness_", "Category"
+    ]
+    writer = csv.DictWriter(output, fieldnames=headers)
+    writer.writeheader()
+
+    for r in active_records:
+        writer.writerow({
+            "Tomato_ID":       r.get("tomato_id") or 1,
+            "Tomato_position": r.get("position") or 1,
+            "Blue":            r.get("blue"),
+            "Green":           r.get("green"),
+            "Yellow":          r.get("yellow"),
+            "Orange":          r.get("orange"),
+            "Red":             r.get("red"),
+            "NIR":             r.get("nir"),
+            "NDVI":            r.get("ndvi"),
+            "GNDVI":           r.get("gndvi"),
+            "RVI":             r.get("rvi"),
+            "Freshness_":      r.get("actual_freshness_score") if r.get("actual_freshness_score") is not None else r.get("freshness_score"),
+            "Category":        r.get("actual_category") or r.get("predicted_category"),
+        })
+    return output.getvalue()
+
+
+def save_immutable_training_snapshot(model_version: str, csv_content: str) -> str:
+    """Saves a permanent immutable CSV snapshot of the merged training dataset for reproducibility."""
+    filename = f"training_snapshot_{model_version.replace('.', '_')}.csv"
+    filepath = SNAPSHOTS_DIR / filename
+    with open(filepath, "w", encoding="utf-8", newline="") as f:
+        f.write(csv_content)
+    return str(filepath)
 
 
 # ─── Model Versions ───────────────────────────────────────────────────────────
@@ -201,7 +445,6 @@ def get_active_model_version() -> Optional[dict]:
 def upsert_model_version(version_data: dict) -> None:
     """Insert or update a model version record, setting it as active."""
     with db_context() as conn:
-        # Deactivate all existing
         conn.execute("UPDATE model_versions SET is_active = 0")
         conn.execute("""
         INSERT INTO model_versions (
@@ -221,29 +464,25 @@ def upsert_model_version(version_data: dict) -> None:
         """, version_data)
 
 
-# ─── Analytics ────────────────────────────────────────────────────────────────
+# ─── Analytics & Retraining Audits ────────────────────────────────────────────
 
 def get_analytics_summary(food_type: str = "tomato") -> dict:
     with db_context() as conn:
-        # Total predictions
         total = conn.execute(
             "SELECT COUNT(*) as cnt FROM predictions WHERE food_type = ?", (food_type,)
         ).fetchone()["cnt"]
 
-        # Category distribution
         dist = conn.execute("""
             SELECT category, COUNT(*) as cnt
             FROM predictions WHERE food_type = ?
             GROUP BY category
         """, (food_type,)).fetchall()
 
-        # Average freshness
         avg_row = conn.execute("""
             SELECT AVG(freshness_score) as avg_score
             FROM predictions WHERE food_type = ?
         """, (food_type,)).fetchone()
 
-        # Trend (last 50)
         trend = conn.execute("""
             SELECT timestamp, freshness_score, category
             FROM predictions
@@ -267,19 +506,41 @@ def get_analytics_summary(food_type: str = "tomato") -> dict:
 def log_retraining_run(data: dict) -> int:
     sql = """
     INSERT INTO retraining_runs (
-        food_type, base_version, new_version, training_samples, verified_samples,
-        new_accuracy, new_r2, performance_check_passed, deployed, notes
+        food_type, base_version, new_version, training_samples, reference_samples,
+        verified_samples, accuracy, precision, recall, f1, r2, mae, rmse,
+        training_duration_sec, status, snapshot_path, deployed, notes
     ) VALUES (
-        :food_type, :base_version, :new_version, :training_samples, :verified_samples,
-        :new_accuracy, :new_r2, :performance_check_passed, :deployed, :notes
+        :food_type, :base_version, :new_version, :training_samples, :reference_samples,
+        :verified_samples, :accuracy, :precision, :recall, :f1, :r2, :mae, :rmse,
+        :training_duration_sec, :status, :snapshot_path, :deployed, :notes
     )
     """
+    params = {
+        "food_type":             data.get("food_type", "tomato"),
+        "base_version":          data.get("base_version"),
+        "new_version":           data.get("new_version"),
+        "training_samples":      data.get("training_samples", 0),
+        "reference_samples":     data.get("reference_samples", 0),
+        "verified_samples":      data.get("verified_samples", 0),
+        "accuracy":              data.get("accuracy", 0.0),
+        "precision":             data.get("precision", 0.0),
+        "recall":                data.get("recall", 0.0),
+        "f1":                    data.get("f1", 0.0),
+        "r2":                    data.get("r2", 0.0),
+        "mae":                   data.get("mae", 0.0),
+        "rmse":                  data.get("rmse", 0.0),
+        "training_duration_sec": data.get("training_duration_sec", 0.0),
+        "status":                data.get("status", "SUCCESS"),
+        "snapshot_path":         data.get("snapshot_path", ""),
+        "deployed":              data.get("deployed", 0),
+        "notes":                 data.get("notes", ""),
+    }
     with db_context() as conn:
-        cursor = conn.execute(sql, data)
+        cursor = conn.execute(sql, params)
         return cursor.lastrowid
 
 
-# ─── CSV Helpers ──────────────────────────────────────────────────────────────
+# ─── CSV Backup Helpers ───────────────────────────────────────────────────────
 
 _PREDICTION_CSV_HEADERS = [
     "id", "timestamp", "food_type", "tomato_id", "position",
@@ -313,12 +574,18 @@ def _ensure_verified_csv_header():
 
 
 def _append_prediction_csv(row: dict):
-    with open(PREDICTION_HISTORY_CSV, "a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=_PREDICTION_CSV_HEADERS, extrasaction="ignore")
-        writer.writerow(row)
+    try:
+        with open(PREDICTION_HISTORY_CSV, "a", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=_PREDICTION_CSV_HEADERS, extrasaction="ignore")
+            writer.writerow(row)
+    except Exception:
+        pass
 
 
 def _append_verified_csv(row: dict):
-    with open(VERIFIED_DATASET_CSV, "a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=_VERIFIED_CSV_HEADERS, extrasaction="ignore")
-        writer.writerow(row)
+    try:
+        with open(VERIFIED_DATASET_CSV, "a", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=_VERIFIED_CSV_HEADERS, extrasaction="ignore")
+            writer.writerow(row)
+    except Exception:
+        pass

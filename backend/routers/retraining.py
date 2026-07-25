@@ -1,14 +1,34 @@
 """
 routers/retraining.py
-Trigger manual model retraining.
+Trigger manual model retraining, view pre-retraining dataset preview, and track real-time training progress.
 """
 from fastapi import APIRouter, Depends, HTTPException
 
 from models.retraining import RetrainingRequest
-from services.retraining_service import trigger_retraining
+from services.retraining_service import trigger_retraining, get_retraining_preview, get_retraining_progress
 from services.inference_service import get_inference_service, InferenceService
 
 router = APIRouter(prefix="/retrain_model", tags=["Retraining"])
+
+
+@router.get("/preview")
+def fetch_retraining_preview(food_type: str = "tomato"):
+    """Returns pre-retraining dataset breakdown (verified, reference, merged totals)."""
+    try:
+        data = get_retraining_preview(food_type)
+        return {"success": True, "data": data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/progress")
+def fetch_retraining_progress():
+    """Returns real-time progress status of an active retraining run."""
+    try:
+        progress = get_retraining_progress()
+        return {"success": True, "data": progress}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("")
@@ -18,7 +38,7 @@ def retrain_model_pipeline(
 ):
     """
     Triggers model retraining based on accumulated human-verified predictions.
-    Validates model quality metrics before deployment.
+    Enforces atomic locks, feature/data validation, performance gates, and automatic rollback.
     """
     try:
         res = trigger_retraining(
@@ -26,9 +46,11 @@ def retrain_model_pipeline(
             notes=req.notes or "",
         )
         if not res["success"]:
-            raise HTTPException(status_code=400, detail=res["error"])
+            status_code = res.get("code", 400)
+            raise HTTPException(status_code=status_code, detail=res["error"])
         return res
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
