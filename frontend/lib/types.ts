@@ -76,6 +76,7 @@ export interface COMStatus {
 }
 
 export interface RetrainingLog {
+  error: string;
   success: boolean;
   message: string;
   base_version: string;
