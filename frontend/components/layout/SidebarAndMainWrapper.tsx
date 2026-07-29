@@ -9,9 +9,9 @@ export default function SidebarAndMainWrapper({ children }: { children: React.Re
 
   return (
     <div className="flex min-h-screen w-full relative overflow-x-hidden">
-      {/* Sidebar Container */}
+      {/* Sidebar Container - Sticky & Fixed to Viewport */}
       <div 
-        className={`transition-all duration-300 ease-in-out z-50 flex shrink-0 ${
+        className={`transition-all duration-300 ease-in-out z-50 flex shrink-0 sticky top-0 h-screen overflow-y-auto ${
           isOpen ? "w-64 font-sans" : "w-0 overflow-hidden border-none"
         }`}
       >
