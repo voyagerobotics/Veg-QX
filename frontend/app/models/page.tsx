@@ -177,7 +177,9 @@ export default function ModelVersioningPage() {
                     <td className="py-3 font-bold text-white flex items-center gap-1.5">
                       <span>{v.version}</span>
                       {(v.version === "v1.0" || v.version === "v1.1") && (
-                        <ShieldCheck size={12} className="text-amber-400" title="Permanent System Baseline" />
+                        <span title="Permanent System Baseline">
+                          <ShieldCheck size={12} className="text-amber-400" />
+                        </span>
                       )}
                     </td>
                     <td className="py-3 text-slate-400">{v.trained_at.split(' ')[0]}</td>
