@@ -167,7 +167,7 @@ export default function TomatoScene() {
       <div className="absolute bottom-3 left-6 right-6 font-mono text-[8px] text-slate-550 flex justify-between">
         <div className="flex items-center gap-1.5">
           <Activity size={10} className="text-accent-green" />
-          <span>SPECTRAL TARGET LOCK: Tomato_v1.1</span>
+          <span>SPECTRAL TARGET LOCK: VEG-QX-SOLANUM</span>
         </div>
         <span>MATRIX ACTIVE</span>
       </div>

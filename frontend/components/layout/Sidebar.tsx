@@ -13,7 +13,8 @@ import {
   Activity,
   ChevronLeft,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { api } from "@/lib/api";
 
 const navItems = [
   { href: "/", label: "Control Center", icon: Satellite },
@@ -34,22 +35,50 @@ interface SidebarProps {
 export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const pathname = usePathname();
   const [activeFood, setActiveFood] = useState("tomato");
+  const [modelVersion, setModelVersion] = useState<string>("v1.0");
+
+  useEffect(() => {
+    const fetchActiveVersion = async () => {
+      try {
+        const health = await api.getHealth();
+        if (health.model_version) {
+          setModelVersion(health.model_version);
+        }
+      } catch (e) {
+        // quiet fallback
+      }
+    };
+    fetchActiveVersion();
+    const interval = setInterval(fetchActiveVersion, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <aside className="w-64 bg-slate-950/80 border-r border-slate-900/60 backdrop-blur-xl flex flex-col h-screen sticky top-0 text-slate-300">
       {/* Brand Header */}
-      <div className="p-5 border-b border-slate-900/60 flex items-center justify-between">
-        <div className="flex flex-col justify-start">
-          <span className="text-xl font-bold text-accent-green tracking-widest font-sans uppercase">
-            VEG QX
-          </span>
-          <span className="text-[8.5px] text-slate-500 font-mono tracking-wider mt-1 uppercase">
-            Advanced Spectral Quality
-          </span>
+      <div className="p-4 border-b border-slate-900/60 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <img
+            src="/voyage_robotics_logo.png"
+            alt="Voyage Robotics Logo"
+            className="w-9 h-9 object-contain filter drop-shadow-[0_0_8px_rgba(57,255,20,0.3)]"
+            onError={(e) => {
+              (e.target as HTMLElement).style.display = 'none';
+            }}
+          />
+          <div className="flex flex-col justify-start">
+            <span className="text-xl font-bold text-accent-green tracking-widest font-sans uppercase leading-none">
+              VEG QX
+            </span>
+            <span className="text-[8.5px] text-slate-400 font-mono tracking-wider mt-1 uppercase font-semibold">
+              Voyage Robotics
+            </span>
+          </div>
         </div>
         {onClose && (
           <button 
             onClick={onClose}
+            suppressHydrationWarning
             className="p-1 hover:bg-slate-900 rounded text-slate-500 hover:text-slate-350 transition-all"
             title="Collapse Navigation"
           >
@@ -66,6 +95,7 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
         <select
           value={activeFood}
           onChange={(e) => setActiveFood(e.target.value)}
+          suppressHydrationWarning
           className="w-full bg-[#0B1020] border border-slate-800 rounded-md px-3 py-1.5 text-[11px] text-slate-200 outline-none focus:border-accent-green font-mono"
         >
           <option value="tomato">Tomato (Active)</option>
@@ -107,7 +137,7 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
       <div className="p-4 border-t border-slate-900/60 text-[9px] font-mono text-slate-500 space-y-1 bg-slate-950/20">
         <div className="flex justify-between"><span>SYS:</span> <span className="text-slate-400">AS7341 / ESP32</span></div>
         <div className="flex justify-between"><span>PORT:</span> <span className="text-slate-400">COM8 (115200)</span></div>
-        <div className="flex justify-between"><span>MODEL_ACTIVE:</span> <span className="text-accent-green">XGB_v1.1</span></div>
+        <div className="flex justify-between"><span>MODEL_ACTIVE:</span> <span className="text-accent-green">XGB_{modelVersion}</span></div>
       </div>
     </aside>
   );

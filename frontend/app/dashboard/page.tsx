@@ -118,9 +118,9 @@ export default function LiveDashboard() {
     <div className="space-y-8">
       {/* Title */}
       <div className="border-b border-slate-900 pb-4">
-        <h2 className="text-2xl font-bold text-white font-mono tracking-wide uppercase flex items-center gap-2">
-          <Activity size={24} className="text-accent-green" />
-          Live Hardware Diagnostics
+        <h2 className="text-2xl font-bold text-white font-mono tracking-wide uppercase flex items-center gap-3">
+          <img src="/voyage_robotics_logo.png" alt="Voyage Robotics Logo" className="w-7 h-7 object-contain filter drop-shadow-[0_0_8px_rgba(57,255,20,0.3)]" />
+          <span>Live Hardware Diagnostics</span>
         </h2>
         <p className="text-xs text-slate-500 mt-1">
           Monitor real-time spectral wave readings from AS7341 on COM8, verify calculations, and display predictive diagnostics.

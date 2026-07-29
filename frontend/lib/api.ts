@@ -183,6 +183,16 @@ export const api = {
     return res.data;
   },
 
+  activateModelVersion: async (version: string): Promise<{ success: boolean; message: string }> => {
+    const res = await client.post(`/model_versions/activate/${version}`);
+    return res.data;
+  },
+
+  deleteModelVersion: async (version: string): Promise<{ success: boolean; message: string }> => {
+    const res = await client.delete(`/model_versions/${version}`);
+    return res.data;
+  },
+
   getRetrainingPreview: async (): Promise<{
     success: boolean;
     data: {

@@ -75,8 +75,10 @@ export default function LandingPage() {
               TELEM_SYS_ID: VEG-QX-MISSION-CONTROL
             </span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white font-sans uppercase">
-            VEG QX <span className="text-slate-500 font-mono text-xs font-normal lowercase tracking-normal">// precision AI for non-destructive vegetable analysis</span>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white font-sans uppercase flex items-center gap-3">
+            <img src="/voyage_robotics_logo.png" alt="Voyage Robotics Logo" className="w-8 h-8 object-contain filter drop-shadow-[0_0_8px_rgba(57,255,20,0.3)]" />
+            <span>VEG QX</span>
+            <span className="text-slate-500 font-mono text-xs font-normal lowercase tracking-normal">// precision AI for non-destructive vegetable analysis</span>
           </h1>
         </div>
 

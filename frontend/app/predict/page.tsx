@@ -159,8 +159,9 @@ export default function PredictionPage() {
     <div className="space-y-8">
       {/* Page Title */}
       <div className="border-b border-slate-900 pb-4">
-        <h2 className="text-2xl font-bold text-white font-mono tracking-wide uppercase">
-          Freshness Prediction Engine
+        <h2 className="text-2xl font-bold text-white font-mono tracking-wide uppercase flex items-center gap-3">
+          <img src="/voyage_robotics_logo.png" alt="Voyage Robotics Logo" className="w-7 h-7 object-contain filter drop-shadow-[0_0_8px_rgba(57,255,20,0.3)]" />
+          <span>Freshness Prediction Engine</span>
         </h2>
         <p className="text-xs text-slate-500 mt-1">
           Perform live machine learning diagnostics via manual values, multi-position arrays, or uploaded datasets.

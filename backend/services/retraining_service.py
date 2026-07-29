@@ -33,6 +33,7 @@ from config import (
 )
 from services.inference_service import get_inference_service, reload_inference_service
 from services.database_service import (
+    init_database,
     get_verified_predictions_active,
     generate_verified_dataset_csv,
     save_immutable_training_snapshot,
@@ -124,6 +125,8 @@ def trigger_retraining(food_type: str = "tomato", notes: str = "") -> dict:
     start_time = time.time()
     try:
         _update_progress("Preparing Dataset from SQLite", 10)
+        # Ensure database tables and column migrations are 100% up-to-date
+        init_database()
 
         # 1. Fetch active verified records directly from SQLite single source of truth
         active_records = get_verified_predictions_active()
@@ -252,12 +255,17 @@ def trigger_retraining(food_type: str = "tomato", notes: str = "") -> dict:
         rec = float(recall_score(y_te_clf, preds_clf, average="weighted", zero_division=0))
         f1 = float(f1_score(y_te_clf, preds_clf, average="weighted", zero_division=0))
 
-        # Versioning string
-        try:
-            curr_val = float(curr_version_str.replace("v", ""))
-        except ValueError:
-            curr_val = 1.1
-        new_version_str = f"v{curr_val + 0.1:.1f}"
+        # Versioning string (increments beyond highest existing model version in database)
+        existing_versions = [v.get("version", "") for v in get_all_model_versions()]
+        max_v = 1.1
+        for ev in existing_versions:
+            try:
+                num = float(ev.replace("v", ""))
+                if num > max_v:
+                    max_v = num
+            except ValueError:
+                pass
+        new_version_str = f"v{round(max_v + 0.1, 1)}"
 
         duration_sec = round(time.time() - start_time, 2)
 

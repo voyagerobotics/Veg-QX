@@ -67,16 +67,23 @@ export default function TopBar({ isSidebarOpen = true, onToggleSidebar }: TopBar
         {!isSidebarOpen && onToggleSidebar && (
           <button
             onClick={onToggleSidebar}
+            suppressHydrationWarning
             className="p-1 hover:bg-slate-900/80 rounded text-accent-green hover:text-white transition-all mr-1 flex items-center justify-center border border-slate-800/40"
             title="Open Navigation Panel"
           >
             <Menu size={16} />
           </button>
         )}
-        <div className="flex items-center gap-1.5 border-r border-slate-900 pr-4">
-          <Radio size={16} className="text-accent-green animate-pulse" />
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-            Telemetry Ribbon
+        <div className="flex items-center gap-2 border-r border-slate-900 pr-4">
+          <img
+            src="/voyage_robotics_logo.png"
+            alt="Voyage Robotics Logo"
+            className="w-5 h-5 object-contain"
+            onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+          />
+          <Radio size={14} className="text-accent-green animate-pulse" />
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">
+            VEG QX Telemetry
           </span>
         </div>
         <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
@@ -88,7 +95,7 @@ export default function TopBar({ isSidebarOpen = true, onToggleSidebar }: TopBar
       {/* Centerpiece Active Sample ID */}
       <div className="hidden lg:flex items-center gap-2 bg-[#0B1020] border border-slate-900 px-3 py-1 rounded text-[9px] tracking-wider text-slate-400">
         <span className="text-slate-600 font-semibold">ACTIVE SAMPLE:</span>
-        <span className="text-accent-blue font-bold">SCAN-TOMATO-1.1</span>
+        <span className="text-accent-blue font-bold">SCAN-TOMATO-{status.model_version?.replace('v', '') || '1.0'}</span>
       </div>
 
       {/* Telemetry Status Grid */}
@@ -144,6 +151,7 @@ export default function TopBar({ isSidebarOpen = true, onToggleSidebar }: TopBar
         <button
           onClick={fetchStatus}
           disabled={loading}
+          suppressHydrationWarning
           className="text-slate-500 hover:text-slate-350 transition-colors pl-2"
         >
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} />

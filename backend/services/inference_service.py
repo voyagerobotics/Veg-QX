@@ -34,10 +34,46 @@ class InferenceService:
 
     def load_best_model(self) -> bool:
         """
-        Scans models/ directory and loads the pipeline with the highest
-        classification_accuracy. Falls back to the configured active_model_path.
+        Loads the active production model version designated in SQLite model_versions table.
+        Falls back to candidate scanning or active_model_path if not found.
+        """
+        return self.load_active_model()
+
+    def load_active_model(self) -> bool:
+        """
+        Loads the active model version designated in the SQLite model_versions table.
         Returns True if loaded successfully.
         """
+        active_version_info = None
+        try:
+            from services.database_service import get_active_model_version
+            active_version_info = get_active_model_version()
+        except Exception as db_err:
+            print(f"[InferenceService] Note: Could not query active version from DB: {db_err}")
+
+        target_version = active_version_info.get("version") if active_version_info else None
+
+        if target_version:
+            # Look for exact version file
+            path = MODELS_DIR / f"{self.food_type}_freshness_pipeline_{target_version}.pkl"
+            if not path.exists():
+                if target_version == "v1.0":
+                    path = MODELS_DIR / "tomato_freshness_pipeline_v1.pkl"
+                elif target_version == "v1.1":
+                    path = MODELS_DIR / "tomato_freshness_pipeline_v1.1.pkl"
+
+            if path.exists():
+                try:
+                    payload = joblib.load(str(path))
+                    payload["_path"] = str(path)
+                    self._apply_payload(payload)
+                    self.model_version = target_version
+                    print(f"[InferenceService] Loaded SQLite ACTIVE model version '{self.model_version}' from {path.name}")
+                    return True
+                except Exception as e:
+                    print(f"[InferenceService] Warning: Failed to load target active version '{target_version}': {e}")
+
+        # Fallback 1: Scan models/ directory for candidate pkl files
         pattern = str(MODELS_DIR / f"{self.food_type}_freshness_pipeline_v*.pkl")
         candidates = sorted(glob.glob(pattern))
 
@@ -55,7 +91,7 @@ class InferenceService:
             except Exception:
                 continue
 
-        # Fallback to configured active model path
+        # Fallback 2: Configured active model path
         if best_payload is None:
             fallback = self.config.get("active_model_path")
             if fallback and Path(fallback).exists():
@@ -70,7 +106,7 @@ class InferenceService:
                 )
 
         self._apply_payload(best_payload)
-        print(f"[InferenceService] Loaded model '{self.model_version}' "
+        print(f"[InferenceService] Fallback: Loaded model '{self.model_version}' "
               f"(acc={self.metadata.get('classification_accuracy', '?'):.4f}, "
               f"R²={self.metadata.get('regression_r2', '?'):.4f})")
         return True

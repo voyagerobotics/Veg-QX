@@ -24,9 +24,37 @@ from routers import (
 
 from contextlib import asynccontextmanager
 
+import shutil
+from fastapi.staticfiles import StaticFiles
+from config import BASE_DIR
+
+def ensure_logo_copied():
+    logo_sources = [
+        r"D:\voyage robotics VEG QX\ml model\voyage_robotics_logo.png",
+        r"C:\Users\ASUS\.gemini\antigravity-ide\brain\9b9c335d-171d-4c70-8004-2ebc829920c2\media__1785308917848.png"
+    ]
+    for src in logo_sources:
+        if os.path.exists(src):
+            try:
+                public_dir = BASE_DIR.parent / "frontend" / "public"
+                public_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy(src, public_dir / "voyage_robotics_logo.png")
+
+                static_dir = BASE_DIR / "static"
+                static_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy(src, static_dir / "voyage_robotics_logo.png")
+                print(f"  ✔ Logo copied from {src} to frontend/public and backend/static.")
+                break
+            except Exception as e:
+                print(f"  Note copying logo: {e}")
+
+ensure_logo_copied()
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("🚀 Tomato Freshness API starting up...")
+    print("🚀 VEG QX — Voyage Robotics API starting up...")
+    ensure_logo_copied()
+
     # 1. Initialize DB and directories
     print("  Initializing SQLite database & CSV files...")
     init_database()
@@ -48,11 +76,16 @@ async def lifespan(app: FastAPI):
 
 # Initialize FastAPI App
 app = FastAPI(
-    title="Tomato Freshness Detection System API",
-    description="Scientific API endpoints for real-time sensor connection, batch prediction, and model retraining.",
+    title="VEG QX — Voyage Robotics API",
+    description="Scientific API endpoints for real-time sensor connection, batch prediction, and model retraining under Voyage Robotics.",
     version="1.1",
     lifespan=lifespan,
 )
+
+# Serve static files for assets
+static_path = BASE_DIR / "static"
+static_path.mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
 
 # Configure CORS for Next.js communication
 app.add_middleware(

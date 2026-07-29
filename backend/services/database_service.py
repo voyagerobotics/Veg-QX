@@ -97,41 +97,46 @@ def _migrate_database_schema(conn: sqlite3.Connection):
     cursor.execute("PRAGMA table_info(retraining_runs)")
     retrain_cols = [row["name"] for row in cursor.fetchall()]
     if retrain_cols:
-        if "reference_samples" not in retrain_cols:
-            cursor.execute("ALTER TABLE retraining_runs ADD COLUMN reference_samples INTEGER DEFAULT 0")
-        if "verified_samples" not in retrain_cols:
-            cursor.execute("ALTER TABLE retraining_runs ADD COLUMN verified_samples INTEGER DEFAULT 0")
-        if "precision" not in retrain_cols:
-            cursor.execute("ALTER TABLE retraining_runs ADD COLUMN precision REAL DEFAULT 0.0")
-        if "recall" not in retrain_cols:
-            cursor.execute("ALTER TABLE retraining_runs ADD COLUMN recall REAL DEFAULT 0.0")
-        if "f1" not in retrain_cols:
-            cursor.execute("ALTER TABLE retraining_runs ADD COLUMN f1 REAL DEFAULT 0.0")
-        if "snapshot_path" not in retrain_cols:
-            cursor.execute("ALTER TABLE retraining_runs ADD COLUMN snapshot_path TEXT")
-        if "deployed" not in retrain_cols:
-            cursor.execute("ALTER TABLE retraining_runs ADD COLUMN deployed INTEGER DEFAULT 0")
-        if "notes" not in retrain_cols:
-            cursor.execute("ALTER TABLE retraining_runs ADD COLUMN notes TEXT")
-        if "mae" not in retrain_cols:
-            cursor.execute("ALTER TABLE retraining_runs ADD COLUMN mae REAL DEFAULT 0.0")
-        if "rmse" not in retrain_cols:
-            cursor.execute("ALTER TABLE retraining_runs ADD COLUMN rmse REAL DEFAULT 0.0")
-        if "training_duration_sec" not in retrain_cols:
-            cursor.execute("ALTER TABLE retraining_runs ADD COLUMN training_duration_sec REAL DEFAULT 0.0")
+        for col, col_type in [
+            ("food_type", "TEXT DEFAULT 'tomato'"),
+            ("base_version", "TEXT"),
+            ("new_version", "TEXT"),
+            ("training_samples", "INTEGER DEFAULT 0"),
+            ("reference_samples", "INTEGER DEFAULT 0"),
+            ("verified_samples", "INTEGER DEFAULT 0"),
+            ("accuracy", "REAL DEFAULT 0.0"),
+            ("precision", "REAL DEFAULT 0.0"),
+            ("recall", "REAL DEFAULT 0.0"),
+            ("f1", "REAL DEFAULT 0.0"),
+            ("r2", "REAL DEFAULT 0.0"),
+            ("mae", "REAL DEFAULT 0.0"),
+            ("rmse", "REAL DEFAULT 0.0"),
+            ("training_duration_sec", "REAL DEFAULT 0.0"),
+            ("status", "TEXT DEFAULT 'SUCCESS'"),
+            ("snapshot_path", "TEXT"),
+            ("deployed", "INTEGER DEFAULT 0"),
+            ("notes", "TEXT"),
+        ]:
+            if col not in retrain_cols:
+                cursor.execute(f"ALTER TABLE retraining_runs ADD COLUMN {col} {col_type}")
 
     # 4. Migrations for model_versions table
     cursor.execute("PRAGMA table_info(model_versions)")
     mv_cols = [row["name"] for row in cursor.fetchall()]
     if mv_cols:
-        if "mae" not in mv_cols:
-            cursor.execute("ALTER TABLE model_versions ADD COLUMN mae REAL DEFAULT 0.0")
-        if "rmse" not in mv_cols:
-            cursor.execute("ALTER TABLE model_versions ADD COLUMN rmse REAL DEFAULT 0.0")
-        if "pkl_path" not in mv_cols:
-            cursor.execute("ALTER TABLE model_versions ADD COLUMN pkl_path TEXT")
-        if "notes" not in mv_cols:
-            cursor.execute("ALTER TABLE model_versions ADD COLUMN notes TEXT")
+        for col, col_type in [
+            ("food_type", "TEXT DEFAULT 'tomato'"),
+            ("training_samples", "INTEGER DEFAULT 0"),
+            ("classification_accuracy", "REAL DEFAULT 0.0"),
+            ("regression_r2", "REAL DEFAULT 0.0"),
+            ("mae", "REAL DEFAULT 0.0"),
+            ("rmse", "REAL DEFAULT 0.0"),
+            ("is_active", "INTEGER DEFAULT 0"),
+            ("pkl_path", "TEXT"),
+            ("notes", "TEXT"),
+        ]:
+            if col not in mv_cols:
+                cursor.execute(f"ALTER TABLE model_versions ADD COLUMN {col} {col_type}")
 
     # 5. Automatically repair any pre-existing NULL values in tables
     _repair_null_records(conn)
@@ -594,6 +599,45 @@ def upsert_model_version(version_data: dict) -> None:
             is_active               = 1,
             trained_at              = datetime('now')
         """, version_data)
+
+
+def set_active_model_version(version: str) -> dict:
+    """
+    Sets the specified model version as active in SQLite.
+    Returns the model version record dict or raises ValueError if version doesn't exist.
+    """
+    with db_context() as conn:
+        _migrate_database_schema(conn)
+        target = conn.execute("SELECT * FROM model_versions WHERE version = ?", (version,)).fetchone()
+        if not target:
+            raise ValueError(f"Model version {version} not found in database.")
+
+        conn.execute("UPDATE model_versions SET is_active = 0")
+        conn.execute("UPDATE model_versions SET is_active = 1 WHERE version = ?", (version,))
+        return dict(target)
+
+
+def delete_model_version_record(version: str) -> dict:
+    """
+    Deletes a retrained model version record from SQLite.
+    v1.0 and v1.1 are protected permanent baselines and cannot be deleted.
+    Currently active models cannot be deleted.
+    """
+    if version in ["v1.0", "v1.1"]:
+        raise ValueError(f"Model version {version} is a permanent system baseline and cannot be deleted.")
+
+    with db_context() as conn:
+        _migrate_database_schema(conn)
+        target = conn.execute("SELECT * FROM model_versions WHERE version = ?", (version,)).fetchone()
+        if not target:
+            raise ValueError(f"Model version {version} not found.")
+
+        target_dict = dict(target)
+        if target_dict.get("is_active") == 1:
+            raise ValueError(f"Cannot delete model version {version} because it is currently active. Please activate another version first.")
+
+        conn.execute("DELETE FROM model_versions WHERE version = ?", (version,))
+        return target_dict
 
 
 # ─── Analytics & Retraining Audits ────────────────────────────────────────────
