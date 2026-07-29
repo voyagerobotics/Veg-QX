@@ -54,7 +54,7 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   }, []);
 
   return (
-    <aside className="w-64 bg-slate-950/80 border-r border-slate-900/60 backdrop-blur-xl flex flex-col h-screen sticky top-0 text-slate-300">
+    <aside className="w-64 bg-slate-950/80 border-r border-slate-900/60 backdrop-blur-xl flex flex-col h-full text-slate-300">
       {/* Brand Header */}
       <div className="p-4 border-b border-slate-900/60 flex items-center justify-between">
         <div className="flex items-center gap-3">

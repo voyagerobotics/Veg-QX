@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 
 const spectralBands = [
-  { name: "BLUE", wavelength: "450nm", color: "#3B82F6", freq: 0.014, amp: 28, phase: 0.0, speed: 0.20 },
-  { name: "GREEN", wavelength: "530nm", color: "#10B981", freq: 0.018, amp: 22, phase: 1.4, speed: 0.20 },
-  { name: "YELLOW", wavelength: "590nm", color: "#EAB308", freq: 0.012, amp: 18, phase: 2.6, speed: 0.20 },
-  { name: "ORANGE", wavelength: "630nm", color: "#F97316", freq: 0.022, amp: 26, phase: 3.8, speed: 0.20 },
-  { name: "RED", wavelength: "670nm", color: "#EF4444", freq: 0.015, amp: 16, phase: 4.9, speed: 0.20 },
-  { name: "NIR", wavelength: "850nm", color: "#B56EFF", freq: 0.020, amp: 34, phase: 5.6, speed: 0.20 },
+  { name: "BLUE", wavelength: "450nm", color: "#3B82F6", freq: 0.009, amp: 32, phase: 0.0, speed: 0.12, depth: 0.75, offsetRatio: -0.08 },
+  { name: "GREEN", wavelength: "530nm", color: "#10B981", freq: 0.011, amp: 28, phase: 1.05, speed: 0.10, depth: 1.10, offsetRatio: -0.03 },
+  { name: "YELLOW", wavelength: "590nm", color: "#EAB308", freq: 0.008, amp: 24, phase: 2.10, speed: 0.08, depth: 0.85, offsetRatio: 0.03 },
+  { name: "ORANGE", wavelength: "630nm", color: "#F97316", freq: 0.012, amp: 30, phase: 3.14, speed: 0.14, depth: 1.25, offsetRatio: 0.08 },
+  { name: "RED", wavelength: "670nm", color: "#EF4444", freq: 0.009, amp: 26, phase: 4.18, speed: 0.09, depth: 0.95, offsetRatio: 0.10 },
+  { name: "NIR", wavelength: "850nm", color: "#B56EFF", freq: 0.011, amp: 34, phase: 5.23, speed: 0.15, depth: 1.35, offsetRatio: -0.05 },
 ];
 
 export default function SpectralWaves() {
@@ -16,7 +16,7 @@ export default function SpectralWaves() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isVisible, setIsVisible] = useState(true);
 
-  // Viewport detection
+  // Viewport observer
   useEffect(() => {
     const container = containerRef.current;
     if (!container || typeof IntersectionObserver === "undefined") return;
@@ -33,7 +33,7 @@ export default function SpectralWaves() {
     return () => observer.disconnect();
   }, []);
 
-  // Continuous animation loop
+  // 60 FPS 3D Orbital Flow Animation Loop
   useEffect(() => {
     if (!isVisible) return;
 
@@ -46,14 +46,14 @@ export default function SpectralWaves() {
     let time = 0;
 
     const render = () => {
-      time += 0.04; // Smooth continuous movement
+      time += 0.08; // Active visible fluid motion
       const width = canvas.width;
       const height = canvas.height;
 
       ctx.clearRect(0, 0, width, height);
 
-      // Grid Lines
-      ctx.strokeStyle = "rgba(0, 255, 180, 0.06)";
+      // ─── 1. Background Grid & Axis Lines ─────────────────────────────────
+      ctx.strokeStyle = "rgba(0, 255, 180, 0.05)";
       ctx.lineWidth = 1;
 
       const gridSpacingX = width / 14;
@@ -73,37 +73,55 @@ export default function SpectralWaves() {
         ctx.lineTo(width, y);
         ctx.stroke();
       }
-      ctx.setLineDash([]);
+      ctx.setLineDash([]); // Reset line dash
 
-      // Baseline
-      ctx.strokeStyle = "rgba(0, 229, 255, 0.18)";
+      // Baseline center axis
+      ctx.strokeStyle = "rgba(0, 229, 255, 0.15)";
       ctx.beginPath();
-      ctx.moveTo(0, height * 0.55);
-      ctx.lineTo(width, height * 0.55);
+      ctx.moveTo(0, height * 0.5);
+      ctx.lineTo(width, height * 0.5);
       ctx.stroke();
 
-      // Draw Spline Waves
-      spectralBands.forEach((band) => {
+      // ─── 2. Sort Bands dynamically for 3D Z-Depth Occlusion ───────────────
+      const sortedBands = [...spectralBands].map((band) => {
+        const orbitalZ = Math.sin(time * band.speed + band.phase);
+        const dynamicDepth = band.depth + orbitalZ * 0.3; // Z-axis parallax rotation
+        return { ...band, dynamicDepth, orbitalZ };
+      }).sort((a, b) => a.dynamicDepth - b.dynamicDepth);
+
+      // ─── 3. Render Broad, Smooth 3D Orbital Spline Wave Curves ─────────
+      sortedBands.forEach((band) => {
         ctx.save();
+
+        // Parallax depth calculations
+        const depthScale = Math.max(0.5, Math.min(1.4, band.dynamicDepth));
+        const alpha = 0.55 + (depthScale - 0.5) * 0.4; // 0.55 to 0.95 opacity
+        const lineWidth = 1.8 * depthScale; // Thicker lines in foreground
+        const shadowBlur = Math.round(7 * depthScale); // Deeper glow in foreground
+
         ctx.strokeStyle = band.color;
-        ctx.lineWidth = 2.5;
+        ctx.globalAlpha = alpha;
+        ctx.lineWidth = lineWidth;
         ctx.shadowColor = band.color;
-        ctx.shadowBlur = 10;
+        ctx.shadowBlur = shadowBlur;
 
         ctx.beginPath();
 
-        const centerY = height * 0.55;
+        // Dynamic 3D Y-center motion & vertical baseline spread
+        const centerY = height * (0.5 + band.offsetRatio * 0.25 * Math.cos(time * 0.012 + band.phase));
+        const dynamicAmp = band.amp * (0.82 + depthScale * 0.22);
+
         let prevX = 0;
-        let prevY = centerY + Math.sin(time * band.speed + band.phase) * band.amp;
+        let prevY = centerY + Math.sin(time * band.speed + band.phase) * dynamicAmp;
 
         ctx.moveTo(prevX, prevY);
 
         const step = 4;
         for (let x = step; x <= width; x += step) {
-          const y =
-            centerY +
-            Math.sin(x * band.freq + time * band.speed + band.phase) * band.amp +
-            Math.cos(x * 0.008 - time * 0.03) * 10;
+          // Broad wavelength formula with long spatial period + subtle secondary harmonic
+          const wavePhase = x * band.freq + time * band.speed + band.phase;
+          const harmonic = Math.cos(x * 0.003 - time * 0.015 + band.phase * 0.5) * (8 * depthScale);
+          const y = centerY + Math.sin(wavePhase) * dynamicAmp + harmonic;
 
           const cpX = (prevX + x) / 2;
           const cpY = (prevY + y) / 2;
@@ -134,7 +152,7 @@ export default function SpectralWaves() {
       ref={containerRef}
       className="bg-[#070B12] border border-[rgba(0,255,180,0.15)] rounded-2xl p-5 shadow-[0_0_30px_rgba(0,255,136,0.05)] relative overflow-hidden flex flex-col justify-between select-none font-mono min-h-[265px]"
     >
-      {/* Header */}
+      {/* Header Bar */}
       <div className="flex items-center justify-between border-b border-[rgba(0,255,180,0.12)] pb-3 mb-2 z-10">
         <div>
           <h3 className="text-xs font-bold text-[#00FF88] uppercase tracking-[0.15em] flex items-center gap-2">
@@ -143,11 +161,11 @@ export default function SpectralWaves() {
           </h3>
         </div>
         <span className="text-[9px] text-[#00E5FF] tracking-[0.12em] uppercase font-semibold opacity-90">
-          LABORATORY OSCILLOSCOPE ANALYZER // 60 FPS LIVE
+          3D ORBITAL FLOW ANALYZER // 60 FPS LIVE
         </span>
       </div>
 
-      {/* Canvas Display */}
+      {/* Canvas Oscilloscope Display (Exact Original Dimensions Preserved) */}
       <div className="relative w-full h-[150px] rounded-xl overflow-hidden bg-[#050810] border border-[rgba(0,255,180,0.12)] shadow-inner flex items-center justify-center">
         <canvas
           ref={canvasRef}
@@ -157,7 +175,7 @@ export default function SpectralWaves() {
         />
       </div>
 
-      {/* Legend Row */}
+      {/* Bottom Wavelength Labels Legend Row */}
       <div className="grid grid-cols-6 gap-2 pt-3 border-t border-[rgba(0,255,180,0.12)] text-center z-10">
         {spectralBands.map((band) => (
           <div key={band.name} className="flex flex-col items-center">
