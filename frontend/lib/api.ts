@@ -84,6 +84,8 @@ export const api = {
   uploadCSV: async (file: File): Promise<{
     success: boolean;
     summary: {
+      auto_verified_records: number;
+      saved_records: any;
       filename: string;
       total_samples: number;
       columns: string[];
