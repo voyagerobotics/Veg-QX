@@ -54,89 +54,87 @@ def db_context():
 def _migrate_database_schema(conn: sqlite3.Connection):
     """Safely apply column additions for existing databases without breaking data."""
     cursor = conn.cursor()
-    cursor.execute("PRAGMA table_info(predictions)")
-    pred_cols = [row["name"] for row in cursor.fetchall()]
-    
-    if "status" not in pred_cols:
-        cursor.execute("ALTER TABLE predictions ADD COLUMN status TEXT NOT NULL DEFAULT 'PENDING'")
-    if "software_version" not in pred_cols:
-        cursor.execute("ALTER TABLE predictions ADD COLUMN software_version TEXT DEFAULT '1.1'")
-    if "firmware_version" not in pred_cols:
-        cursor.execute("ALTER TABLE predictions ADD COLUMN firmware_version TEXT DEFAULT 'v2.0'")
-    if "sensor_type" not in pred_cols:
-        cursor.execute("ALTER TABLE predictions ADD COLUMN sensor_type TEXT DEFAULT 'AS7341'")
-    if "device_id" not in pred_cols:
-        cursor.execute("ALTER TABLE predictions ADD COLUMN device_id TEXT DEFAULT 'ESP32_01'")
 
-    cursor.execute("PRAGMA table_info(verified_predictions)")
-    ver_cols = [row["name"] for row in cursor.fetchall()]
-    if "blue" not in ver_cols:
-        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN blue REAL")
-        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN green REAL")
-        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN yellow REAL")
-        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN orange REAL")
-        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN red REAL")
-        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN nir REAL")
-        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN ndvi REAL")
-        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN gndvi REAL")
-        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN rvi REAL")
-        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN freshness_score REAL")
-        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN predicted_category TEXT")
-        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN confidence_fresh REAL")
-        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN confidence_aging REAL")
-        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN confidence_spoiling REAL")
-        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN tomato_id INTEGER")
-        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN position INTEGER")
-        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN timestamp TEXT")
-        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN model_version TEXT")
-        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN input_source TEXT DEFAULT 'manual'")
-        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN status TEXT NOT NULL DEFAULT 'ACTIVE'")
-        cursor.execute("ALTER TABLE verified_predictions ADD COLUMN retraining_run_id INTEGER")
+    # 1. Migrations for predictions table
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='predictions'")
+    if cursor.fetchone():
+        cursor.execute("PRAGMA table_info(predictions)")
+        pred_cols = [row["name"] for row in cursor.fetchall()]
+        if "status" not in pred_cols:
+            cursor.execute("ALTER TABLE predictions ADD COLUMN status TEXT NOT NULL DEFAULT 'PENDING'")
+        if "software_version" not in pred_cols:
+            cursor.execute("ALTER TABLE predictions ADD COLUMN software_version TEXT DEFAULT '1.1'")
+        if "firmware_version" not in pred_cols:
+            cursor.execute("ALTER TABLE predictions ADD COLUMN firmware_version TEXT DEFAULT 'v2.0'")
+        if "sensor_type" not in pred_cols:
+            cursor.execute("ALTER TABLE predictions ADD COLUMN sensor_type TEXT DEFAULT 'AS7341'")
+        if "device_id" not in pred_cols:
+            cursor.execute("ALTER TABLE predictions ADD COLUMN device_id TEXT DEFAULT 'ESP32_01'")
+
+    # 2. Migrations for verified_predictions table
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='verified_predictions'")
+    if cursor.fetchone():
+        cursor.execute("PRAGMA table_info(verified_predictions)")
+        ver_cols = [row["name"] for row in cursor.fetchall()]
+        if "blue" not in ver_cols:
+            cursor.execute("ALTER TABLE verified_predictions ADD COLUMN blue REAL")
+            cursor.execute("ALTER TABLE verified_predictions ADD COLUMN green REAL")
+            cursor.execute("ALTER TABLE verified_predictions ADD COLUMN yellow REAL")
+            cursor.execute("ALTER TABLE verified_predictions ADD COLUMN orange REAL")
+            cursor.execute("ALTER TABLE verified_predictions ADD COLUMN red REAL")
+            cursor.execute("ALTER TABLE verified_predictions ADD COLUMN nir REAL")
+            cursor.execute("ALTER TABLE verified_predictions ADD COLUMN ndvi REAL")
+            cursor.execute("ALTER TABLE verified_predictions ADD COLUMN gndvi REAL")
+            cursor.execute("ALTER TABLE verified_predictions ADD COLUMN rvi REAL")
 
     # 3. Migrations for retraining_runs table
-    cursor.execute("PRAGMA table_info(retraining_runs)")
-    retrain_cols = [row["name"] for row in cursor.fetchall()]
-    if retrain_cols:
-        for col, col_type in [
-            ("food_type", "TEXT DEFAULT 'tomato'"),
-            ("base_version", "TEXT"),
-            ("new_version", "TEXT"),
-            ("training_samples", "INTEGER DEFAULT 0"),
-            ("reference_samples", "INTEGER DEFAULT 0"),
-            ("verified_samples", "INTEGER DEFAULT 0"),
-            ("accuracy", "REAL DEFAULT 0.0"),
-            ("precision", "REAL DEFAULT 0.0"),
-            ("recall", "REAL DEFAULT 0.0"),
-            ("f1", "REAL DEFAULT 0.0"),
-            ("r2", "REAL DEFAULT 0.0"),
-            ("mae", "REAL DEFAULT 0.0"),
-            ("rmse", "REAL DEFAULT 0.0"),
-            ("training_duration_sec", "REAL DEFAULT 0.0"),
-            ("status", "TEXT DEFAULT 'SUCCESS'"),
-            ("snapshot_path", "TEXT"),
-            ("deployed", "INTEGER DEFAULT 0"),
-            ("notes", "TEXT"),
-        ]:
-            if col not in retrain_cols:
-                cursor.execute(f"ALTER TABLE retraining_runs ADD COLUMN {col} {col_type}")
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='retraining_runs'")
+    if cursor.fetchone():
+        cursor.execute("PRAGMA table_info(retraining_runs)")
+        retrain_cols = [row["name"] for row in cursor.fetchall()]
+        if retrain_cols:
+            for col, col_type in [
+                ("food_type", "TEXT DEFAULT 'tomato'"),
+                ("base_version", "TEXT"),
+                ("new_version", "TEXT"),
+                ("training_samples", "INTEGER DEFAULT 0"),
+                ("reference_samples", "INTEGER DEFAULT 0"),
+                ("verified_samples", "INTEGER DEFAULT 0"),
+                ("accuracy", "REAL DEFAULT 0.0"),
+                ("precision", "REAL DEFAULT 0.0"),
+                ("recall", "REAL DEFAULT 0.0"),
+                ("f1", "REAL DEFAULT 0.0"),
+                ("r2", "REAL DEFAULT 0.0"),
+                ("mae", "REAL DEFAULT 0.0"),
+                ("rmse", "REAL DEFAULT 0.0"),
+                ("training_duration_sec", "REAL DEFAULT 0.0"),
+                ("status", "TEXT DEFAULT 'SUCCESS'"),
+                ("snapshot_path", "TEXT"),
+                ("deployed", "INTEGER DEFAULT 0"),
+                ("notes", "TEXT"),
+            ]:
+                if col not in retrain_cols:
+                    cursor.execute(f"ALTER TABLE retraining_runs ADD COLUMN {col} {col_type}")
 
     # 4. Migrations for model_versions table
-    cursor.execute("PRAGMA table_info(model_versions)")
-    mv_cols = [row["name"] for row in cursor.fetchall()]
-    if mv_cols:
-        for col, col_type in [
-            ("food_type", "TEXT DEFAULT 'tomato'"),
-            ("training_samples", "INTEGER DEFAULT 0"),
-            ("classification_accuracy", "REAL DEFAULT 0.0"),
-            ("regression_r2", "REAL DEFAULT 0.0"),
-            ("mae", "REAL DEFAULT 0.0"),
-            ("rmse", "REAL DEFAULT 0.0"),
-            ("is_active", "INTEGER DEFAULT 0"),
-            ("pkl_path", "TEXT"),
-            ("notes", "TEXT"),
-        ]:
-            if col not in mv_cols:
-                cursor.execute(f"ALTER TABLE model_versions ADD COLUMN {col} {col_type}")
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='model_versions'")
+    if cursor.fetchone():
+        cursor.execute("PRAGMA table_info(model_versions)")
+        mv_cols = [row["name"] for row in cursor.fetchall()]
+        if mv_cols:
+            for col, col_type in [
+                ("food_type", "TEXT DEFAULT 'tomato'"),
+                ("training_samples", "INTEGER DEFAULT 0"),
+                ("classification_accuracy", "REAL DEFAULT 0.0"),
+                ("regression_r2", "REAL DEFAULT 0.0"),
+                ("mae", "REAL DEFAULT 0.0"),
+                ("rmse", "REAL DEFAULT 0.0"),
+                ("is_active", "INTEGER DEFAULT 0"),
+                ("pkl_path", "TEXT"),
+                ("notes", "TEXT"),
+            ]:
+                if col not in mv_cols:
+                    cursor.execute(f"ALTER TABLE model_versions ADD COLUMN {col} {col_type}")
 
     # 5. Automatically repair any pre-existing NULL values in tables
     _repair_null_records(conn)
@@ -149,51 +147,57 @@ def _repair_null_records(conn: sqlite3.Connection):
     """
     cursor = conn.cursor()
 
-    # 1. Backfill verified_predictions NULLs from parent predictions table
-    cursor.execute("""
-        UPDATE verified_predictions
-        SET 
-            blue = COALESCE(blue, (SELECT blue FROM predictions WHERE predictions.id = verified_predictions.prediction_id), 50.0),
-            green = COALESCE(green, (SELECT green FROM predictions WHERE predictions.id = verified_predictions.prediction_id), 50.0),
-            yellow = COALESCE(yellow, (SELECT yellow FROM predictions WHERE predictions.id = verified_predictions.prediction_id), 50.0),
-            orange = COALESCE(orange, (SELECT orange FROM predictions WHERE predictions.id = verified_predictions.prediction_id), 50.0),
-            red = COALESCE(red, (SELECT red FROM predictions WHERE predictions.id = verified_predictions.prediction_id), 50.0),
-            nir = COALESCE(nir, (SELECT nir FROM predictions WHERE predictions.id = verified_predictions.prediction_id), 50.0),
-            freshness_score = COALESCE(freshness_score, (SELECT freshness_score FROM predictions WHERE predictions.id = verified_predictions.prediction_id), 85.0)
-        WHERE blue IS NULL OR green IS NULL OR yellow IS NULL OR orange IS NULL OR red IS NULL OR nir IS NULL
-    """)
+    # Check if tables exist before backfilling
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='predictions'")
+    has_pred = cursor.fetchone()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='verified_predictions'")
+    has_ver = cursor.fetchone()
 
-    # 2. Backfill predictions NULLs if any
-    cursor.execute("""
-        UPDATE predictions
-        SET 
-            blue = COALESCE(blue, 50.0),
-            green = COALESCE(green, 50.0),
-            yellow = COALESCE(yellow, 50.0),
-            orange = COALESCE(orange, 50.0),
-            red = COALESCE(red, 50.0),
-            nir = COALESCE(nir, 50.0)
-        WHERE blue IS NULL OR green IS NULL OR yellow IS NULL OR orange IS NULL OR red IS NULL OR nir IS NULL
-    """)
+    if has_pred and has_ver:
+        cursor.execute("""
+            UPDATE verified_predictions
+            SET 
+                blue = COALESCE(blue, (SELECT blue FROM predictions WHERE predictions.id = verified_predictions.prediction_id), 50.0),
+                green = COALESCE(green, (SELECT green FROM predictions WHERE predictions.id = verified_predictions.prediction_id), 50.0),
+                yellow = COALESCE(yellow, (SELECT yellow FROM predictions WHERE predictions.id = verified_predictions.prediction_id), 50.0),
+                orange = COALESCE(orange, (SELECT orange FROM predictions WHERE predictions.id = verified_predictions.prediction_id), 50.0),
+                red = COALESCE(red, (SELECT red FROM predictions WHERE predictions.id = verified_predictions.prediction_id), 50.0),
+                nir = COALESCE(nir, (SELECT nir FROM predictions WHERE predictions.id = verified_predictions.prediction_id), 50.0),
+                freshness_score = COALESCE(freshness_score, (SELECT freshness_score FROM predictions WHERE predictions.id = verified_predictions.prediction_id), 85.0)
+            WHERE blue IS NULL OR green IS NULL OR yellow IS NULL OR orange IS NULL OR red IS NULL OR nir IS NULL
+        """)
 
-    # 3. Compute missing NDVI, GNDVI, RVI for verified_predictions
-    rows = cursor.execute("SELECT id, blue, green, red, nir, ndvi, gndvi, rvi FROM verified_predictions WHERE ndvi IS NULL OR gndvi IS NULL OR rvi IS NULL").fetchall()
-    for r in rows:
-        red_val = r["red"] if r["red"] is not None else 50.0
-        green_val = r["green"] if r["green"] is not None else 50.0
-        nir_val = r["nir"] if r["nir"] is not None else 50.0
-        ndvi_val = float((nir_val - red_val) / (nir_val + red_val + 1e-8))
-        gndvi_val = float((nir_val - green_val) / (nir_val + green_val + 1e-8))
-        rvi_val = float(nir_val / (red_val + 1e-8))
-        cursor.execute("UPDATE verified_predictions SET ndvi = ?, gndvi = ?, rvi = ? WHERE id = ?", (ndvi_val, gndvi_val, rvi_val, r["id"]))
+    if has_pred:
+        cursor.execute("""
+            UPDATE predictions
+            SET 
+                blue = COALESCE(blue, 50.0),
+                green = COALESCE(green, 50.0),
+                yellow = COALESCE(yellow, 50.0),
+                orange = COALESCE(orange, 50.0),
+                red = COALESCE(red, 50.0),
+                nir = COALESCE(nir, 50.0)
+            WHERE blue IS NULL OR green IS NULL OR yellow IS NULL OR orange IS NULL OR red IS NULL OR nir IS NULL
+        """)
+
+    if has_ver:
+        rows = cursor.execute("SELECT id, blue, green, red, nir, ndvi, gndvi, rvi FROM verified_predictions WHERE ndvi IS NULL OR gndvi IS NULL OR rvi IS NULL").fetchall()
+        for r in rows:
+            red_val = r["red"] if r["red"] is not None else 50.0
+            green_val = r["green"] if r["green"] is not None else 50.0
+            nir_val = r["nir"] if r["nir"] is not None else 50.0
+            ndvi_val = float((nir_val - red_val) / (nir_val + red_val + 1e-8))
+            gndvi_val = float((nir_val - green_val) / (nir_val + green_val + 1e-8))
+            rvi_val = float(nir_val / (red_val + 1e-8))
+            cursor.execute("UPDATE verified_predictions SET ndvi = ?, gndvi = ?, rvi = ? WHERE id = ?", (ndvi_val, gndvi_val, rvi_val, r["id"]))
 
 
 def init_database():
     """Create all tables if they don't exist and run migrations. Run once on startup."""
     schema_sql = SCHEMA_PATH.read_text(encoding="utf-8")
     with db_context() as conn:
-        _migrate_database_schema(conn)
         conn.executescript(schema_sql)
+        _migrate_database_schema(conn)
     _ensure_prediction_csv_header()
     _ensure_verified_csv_header()
 
