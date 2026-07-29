@@ -121,10 +121,10 @@ export default function VerificationCenter() {
           </span>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="max-h-[460px] overflow-y-auto overflow-x-auto pr-1">
           <table className="w-full font-mono text-[11px] text-slate-300 text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-950/40 text-slate-500 border-b border-slate-900 uppercase tracking-wider text-[9px]">
+            <thead className="sticky top-0 z-10 bg-slate-950/90 backdrop-blur-md">
+              <tr className="text-slate-500 border-b border-slate-800 uppercase tracking-wider text-[9px]">
                 <th className="p-2.5">V_ID</th>
                 <th className="p-2.5">TOMATO_ID</th>
                 <th className="p-2.5">POS</th>

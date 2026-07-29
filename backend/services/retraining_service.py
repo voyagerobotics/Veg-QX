@@ -159,26 +159,48 @@ def trigger_retraining(food_type: str = "tomato", notes: str = "") -> dict:
         # Convert active verified records into DataFrame
         new_df_raw = []
         for r in active_records:
+            blue = r.get("blue") if r.get("blue") is not None else r.get("Blue", 50.0)
+            green = r.get("green") if r.get("green") is not None else r.get("Green", 50.0)
+            yellow = r.get("yellow") if r.get("yellow") is not None else r.get("Yellow", 50.0)
+            orange = r.get("orange") if r.get("orange") is not None else r.get("Orange", 50.0)
+            red = r.get("red") if r.get("red") is not None else r.get("Red", 50.0)
+            nir = r.get("nir") if r.get("nir") is not None else r.get("NIR", 50.0)
+
+            ndvi = r.get("ndvi") if r.get("ndvi") is not None else r.get("NDVI")
+            if ndvi is None:
+                ndvi = float((nir - red) / (nir + red + 1e-8))
+
+            gndvi = r.get("gndvi") if r.get("gndvi") is not None else r.get("GNDVI")
+            if gndvi is None:
+                gndvi = float((nir - green) / (nir + green + 1e-8))
+
+            rvi = r.get("rvi") if r.get("rvi") is not None else r.get("RVI")
+            if rvi is None:
+                rvi = float(nir / (red + 1e-8))
+
+            freshness = r.get("actual_freshness_score") if r.get("actual_freshness_score") is not None else (r.get("freshness_score") or 85.0)
+            category = r.get("actual_category") or r.get("predicted_category") or "Fresh"
+
             new_df_raw.append({
-                "Tomato_ID":       r.get("tomato_id") or 1,
+                "Tomato_ID":       r.get("tomato_id") or 1001,
                 "Tomato_position": r.get("position") or 1,
-                "Blue":            r.get("blue"),
-                "Green":           r.get("green"),
-                "Yellow":          r.get("yellow"),
-                "Orange":          r.get("orange"),
-                "Red":             r.get("red"),
-                "NIR":             r.get("nir"),
-                "NDVI":            r.get("ndvi"),
-                "GNDVI":           r.get("gndvi"),
-                "RVI":             r.get("rvi"),
-                "Freshness_":      r.get("actual_freshness_score") if r.get("actual_freshness_score") is not None else r.get("freshness_score"),
-                "Category":        r.get("actual_category") or r.get("predicted_category"),
+                "Blue":            float(blue),
+                "Green":           float(green),
+                "Yellow":          float(yellow),
+                "Orange":          float(orange),
+                "Red":             float(red),
+                "NIR":             float(nir),
+                "NDVI":            float(ndvi),
+                "GNDVI":           float(gndvi),
+                "RVI":             float(rvi),
+                "Freshness_":      float(freshness),
+                "Category":        category,
             })
         new_df = pd.DataFrame(new_df_raw)
 
         # Feature validation
         required_cols = list(ref_df.columns)
-        missing_cols = [c for c in required_cols if c not in new_aligned.columns if 'new_aligned' in locals() or c not in new_df.columns]
+        missing_cols = [c for c in required_cols if c not in new_df.columns]
         if missing_cols:
             err = f"Verified records missing required ML feature columns: {missing_cols}"
             _update_progress("Failed: Missing Features", 0, err)

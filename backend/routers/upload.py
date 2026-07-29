@@ -8,6 +8,7 @@ import pandas as pd
 import io
 
 from services.inference_service import get_inference_service, InferenceService
+from services.database_service import save_prediction, save_verification
 
 router = APIRouter(prefix="/upload_csv", tags=["Upload"])
 
@@ -19,7 +20,8 @@ async def upload_and_predict_dataset(
 ):
     """
     Accepts CSV or XLSX dataset, validates required spectral columns,
-    runs batch predictions, and returns a preview of the results.
+    runs batch predictions, saves all records to SQLite database,
+    and automatically populates the verified retraining queue if ground truth labels exist.
     """
     filename = file.filename.lower()
     contents = await file.read()
@@ -66,11 +68,73 @@ async def upload_and_predict_dataset(
         # Run batch predictions
         pred_df = inference_svc.predict_batch(df)
 
+        saved_count = 0
+        verified_count = 0
+
+        # Save every uploaded dataset row into SQLite (predictions + verified_predictions)
+        for idx, row in pred_df.iterrows():
+            tomato_id = int(row["Tomato_ID"]) if pd.notna(row.get("Tomato_ID")) else None
+            position = int(row["Tomato_position"]) if pd.notna(row.get("Tomato_position")) else 1
+
+            record_data = {
+                "tomato_id": tomato_id,
+                "position": position,
+                "input_source": "csv_upload",
+                "Blue": float(row["Blue"]),
+                "Green": float(row["Green"]),
+                "Yellow": float(row["Yellow"]),
+                "Orange": float(row["Orange"]),
+                "Red": float(row["Red"]),
+                "NIR": float(row["NIR"]),
+                "NDVI": float(row["NDVI"]),
+                "GNDVI": float(row["GNDVI"]),
+                "RVI": float(row["RVI"]),
+                "freshness_score": float(row["freshness_score"]),
+                "category": str(row["category"]),
+                "confidence_fresh": float(row.get("confidence_fresh", 0.0)),
+                "confidence_aging": float(row.get("confidence_aging", 0.0)),
+                "confidence_spoiling": float(row.get("confidence_spoiling", 0.0)),
+                "model_version": str(row.get("model_version", "v1.1")),
+            }
+
+            db_id = save_prediction(record_data)
+            saved_count += 1
+
+            # Check if ground truth label is present in original uploaded row
+            actual_cat = None
+            orig_row = df.iloc[idx] if idx < len(df) else {}
+            for col_name in ["Category", "actual_category", "category"]:
+                if col_name in orig_row and pd.notna(orig_row[col_name]):
+                    actual_cat = str(orig_row[col_name]).strip()
+                    break
+
+            actual_fresh = None
+            for col_name in ["Freshness_", "actual_freshness_score", "freshness_score"]:
+                if col_name in orig_row and pd.notna(orig_row[col_name]):
+                    try:
+                        actual_fresh = float(orig_row[col_name])
+                        break
+                    except (ValueError, TypeError):
+                        pass
+
+            if actual_cat:
+                actual_cat_cap = actual_cat.capitalize()
+                if actual_cat_cap in ["Fresh", "Aging", "Spoiling"]:
+                    save_verification(
+                        prediction_id=db_id,
+                        actual_category=actual_cat_cap,
+                        actual_freshness=actual_fresh,
+                        notes=f"Auto-verified from dataset file: {file.filename}",
+                        verified_by="csv_upload"
+                    )
+                    verified_count += 1
+
         # Prepare summary stats
         summary = {
             "filename": file.filename,
             "total_samples": len(pred_df),
-            "columns": list(pred_df.columns),
+            "saved_records": saved_count,
+            "auto_verified_records": verified_count,
             "fresh_count": int((pred_df["category"] == "Fresh").sum()),
             "aging_count": int((pred_df["category"] == "Aging").sum()),
             "spoiling_count": int((pred_df["category"] == "Spoiling").sum()),
@@ -79,7 +143,6 @@ async def upload_and_predict_dataset(
 
         # Convert preview subset to list of dicts (first 100 rows)
         preview_cols = required_cols + ["Tomato_ID", "Tomato_position", "freshness_score", "category", "NDVI", "GNDVI", "RVI"]
-        # Filter columns to only what's available
         actual_preview_cols = [c for c in preview_cols if c in pred_df.columns]
         preview_data = pred_df[actual_preview_cols].head(100).replace({pd.NA: None, float('nan'): None}).to_dict(orient="records")
 

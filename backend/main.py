@@ -22,27 +22,11 @@ from routers import (
     retraining,
 )
 
-# Initialize FastAPI App
-app = FastAPI(
-    title="Tomato Freshness Detection System API",
-    description="Scientific API endpoints for real-time sensor connection, batch prediction, and model retraining.",
-    version="1.1",
-)
+from contextlib import asynccontextmanager
 
-# Configure CORS for Next.js communication
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-@app.on_event("startup")
-def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     print("🚀 Tomato Freshness API starting up...")
-
     # 1. Initialize DB and directories
     print("  Initializing SQLite database & CSV files...")
     init_database()
@@ -59,6 +43,25 @@ def startup_event():
         print(f"  ❌ Error loading ML model: {e}")
 
     print("🚀 Startup complete. API is ready.")
+    yield
+
+
+# Initialize FastAPI App
+app = FastAPI(
+    title="Tomato Freshness Detection System API",
+    description="Scientific API endpoints for real-time sensor connection, batch prediction, and model retraining.",
+    version="1.1",
+    lifespan=lifespan,
+)
+
+# Configure CORS for Next.js communication
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # Register API Routers

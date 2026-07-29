@@ -140,6 +140,12 @@ export default function PredictionPage() {
       msgs.push(`✔ Schema Validation: Success`);
       msgs.push(`✔ Scanned ${res.summary.total_samples} valid rows.`);
       msgs.push(`✔ Categories mapped: Fresh (${res.summary.fresh_count}), Aging (${res.summary.aging_count}), Spoiling (${res.summary.spoiling_count})`);
+      if (res.summary.saved_records) {
+        msgs.push(`✔ Saved ${res.summary.saved_records} dataset records into SQLite database.`);
+      }
+      if (res.summary.auto_verified_records > 0) {
+        msgs.push(`✔ Automatically populated ${res.summary.auto_verified_records} verified ground truth records for Retraining & Verification Center.`);
+      }
       setValidationMessages(msgs);
     } catch (err: any) {
       const errMsg = err.response?.data?.detail || err.message;
