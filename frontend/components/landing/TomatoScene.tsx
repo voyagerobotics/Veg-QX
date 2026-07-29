@@ -1,175 +1,295 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Activity } from "lucide-react";
+import { Cpu, Layers, Target, TrendingUp, ShieldCheck, Activity, Leaf, Compass } from "lucide-react";
+import { api } from "@/lib/api";
 
-const steps = [
-  "INITIALIZING",
-  "CALIBRATING",
-  "CAPTURING SPECTRAL DATA",
-  "FEATURE EXTRACTION",
-  "RUNNING AI MODEL",
-  "QUALITY ASSESSMENT COMPLETE"
+const spectralNodes = [
+  { name: "BLUE", wavelength: "470 nm", color: "#3B82F6", halo: "rgba(59, 130, 246, 0.5)" },
+  { name: "GREEN", wavelength: "525 nm", color: "#10B981", halo: "rgba(16, 185, 129, 0.5)" },
+  { name: "YELLOW", wavelength: "590 nm", color: "#EAB308", halo: "rgba(234, 179, 8, 0.5)" },
+  { name: "ORANGE", wavelength: "610 nm", color: "#F97316", halo: "rgba(249, 115, 22, 0.5)" },
+  { name: "RED", wavelength: "660 nm", color: "#EF4444", halo: "rgba(239, 68, 68, 0.5)" },
+  { name: "NIR", wavelength: "850 nm", color: "#B56EFF", halo: "rgba(181, 110, 255, 0.5)" },
 ];
 
 export default function TomatoScene() {
-  const [stepIndex, setStepIndex] = useState(0);
+  const [activeModelInfo, setActiveModelInfo] = useState({
+    version: "v1.0",
+    accuracy: 80.87,
+    r2: 0.9999,
+  });
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setStepIndex((prev) => (prev + 1) % steps.length);
-    }, 1000); // 1000ms per step = 6s loop
-    return () => clearInterval(interval);
+    const fetchInfo = async () => {
+      try {
+        const res = await api.getmodelInfo();
+        if (res.success && res.data) {
+          setActiveModelInfo({
+            version: res.data.model_version || "v1.0",
+            accuracy: res.data.classification_accuracy ? Number((res.data.classification_accuracy * 100).toFixed(2)) : 80.87,
+            r2: res.data.regression_r2 || 0.9999,
+          });
+        }
+      } catch (e) {
+        // Fallback default states on API error
+      }
+    };
+    fetchInfo();
   }, []);
 
   return (
-    <div className="w-full h-[320px] relative rounded-2xl overflow-hidden bg-[#0B1020] border border-slate-900 flex flex-col items-center justify-center">
-      {/* CSS Animation Keyframes */}
+    <div className="w-full relative rounded-2xl overflow-hidden bg-[#070B12] border border-[rgba(0,255,180,0.15)] p-6 min-h-[580px] flex flex-col justify-between shadow-[0_0_30px_rgba(0,255,136,0.05)] font-mono text-slate-300 select-none">
+      {/* Dynamic Keyframes Animation Styles */}
       <style>{`
-        @keyframes laser-sweep-h {
-          0%, 100% { transform: translateY(-42px); opacity: 0; }
-          15%, 85% { opacity: 0.95; }
-          50% { transform: translateY(42px); }
+        @keyframes tomato-float {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-10px) rotate(1deg); }
         }
-        @keyframes laser-sweep-v {
-          0%, 100% { transform: translateX(-50px); opacity: 0; }
-          20%, 80% { opacity: 0.7; }
-          50% { transform: translateX(50px); }
+        @keyframes ring-rotate-1 {
+          0% { transform: rotateX(72deg) rotateZ(0deg); }
+          100% { transform: rotateX(72deg) rotateZ(360deg); }
         }
-        @keyframes orbit-1 {
-          0% { transform: rotate(0deg) translateX(85px) rotate(0deg); }
-          100% { transform: rotate(360deg) translateX(85px) rotate(-360deg); }
+        @keyframes ring-rotate-2 {
+          0% { transform: rotateX(68deg) rotateY(25deg) rotateZ(360deg); }
+          100% { transform: rotateX(68deg) rotateY(25deg) rotateZ(0deg); }
         }
-        @keyframes orbit-2 {
-          0% { transform: rotate(180deg) translateX(105px) rotate(-180deg); }
-          100% { transform: rotate(540deg) translateX(105px) rotate(-540deg); }
+        @keyframes ring-rotate-3 {
+          0% { transform: rotateX(78deg) rotateY(-20deg) rotateZ(0deg); }
+          100% { transform: rotateX(78deg) rotateY(-20deg) rotateZ(360deg); }
         }
-        @keyframes pulse-ring {
-          0% { transform: scale(0.65); opacity: 0; }
-          50% { opacity: 0.35; }
-          100% { transform: scale(1.45); opacity: 0; }
+        @keyframes ring-rotate-4 {
+          0% { transform: rotateX(64deg) rotateY(45deg) rotateZ(0deg); }
+          100% { transform: rotateX(64deg) rotateY(45deg) rotateZ(-360deg); }
         }
-        @keyframes blink-slow {
-          0%, 100% { opacity: 0.3; transform: scale(0.9); }
-          50% { opacity: 1; transform: scale(1.15); }
+        @keyframes ring-rotate-5 {
+          0% { transform: rotateX(80deg) rotateY(-35deg) rotateZ(0deg); }
+          100% { transform: rotateX(80deg) rotateY(-35deg) rotateZ(360deg); }
         }
-        @keyframes breathing-glow {
-          0%, 100% {
-            box-shadow: 0 0 25px rgba(239, 68, 68, 0.2), inset 0 0 10px rgba(255, 255, 255, 0.08);
-            transform: scale(1);
-          }
-          50% {
-            box-shadow: 0 0 35px rgba(239, 68, 68, 0.4), inset 0 0 15px rgba(255, 255, 255, 0.12);
-            transform: scale(1.015);
-          }
+        @keyframes scan-line-sweep {
+          0% { top: 0%; opacity: 0; }
+          20% { opacity: 0.8; }
+          80% { opacity: 0.8; }
+          100% { top: 100%; opacity: 0; }
+        }
+        @keyframes particle-drift {
+          0% { transform: translateY(15px) scale(0.5); opacity: 0; }
+          50% { opacity: 0.9; }
+          100% { transform: translateY(-45px) scale(1.1); opacity: 0; }
+        }
+        @keyframes node-halo-pulse {
+          0%, 100% { transform: scale(1); opacity: 0.8; }
+          50% { transform: scale(1.2); opacity: 1; }
         }
       `}</style>
 
-      {/* HUD Header info */}
-      <div className="absolute top-3 left-4 z-10 font-mono text-[9px] text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-        <span className="w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse" />
-        <span>Target Acquisition Telemetry</span>
+      {/* Header Bar */}
+      <div className="flex items-center justify-between z-20 border-b border-[rgba(0,255,180,0.12)] pb-3">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-[#00FF88] shadow-[0_0_8px_#00FF88] animate-pulse" />
+          <h2 className="text-xs font-bold text-[#00FF88] uppercase tracking-[0.18em]">
+            TARGET ACQUISITION TELEMETRY
+          </h2>
+        </div>
+        <span className="text-[9px] text-[#00E5FF] tracking-[0.15em] font-semibold opacity-90">
+          AI INFERENCE CORE // 6-BAND MULTISPECTRAL MATRIX
+        </span>
       </div>
 
-      <div className="absolute top-3 right-4 z-10 font-mono text-[9px] text-slate-500">
-        SYS_LOCK: ACTIVE_COM8
-      </div>
-
-      {/* Grid Backdrop */}
-      <div className="absolute inset-0 opacity-[0.02] pointer-events-none" 
+      {/* Blueprint Grid & Technical Overlay Backdrop */}
+      <div 
+        className="absolute inset-0 opacity-[0.035] pointer-events-none z-0"
         style={{
-          backgroundImage: `linear-gradient(to right, #ffffff 1px, transparent 1px),
-                            linear-gradient(to bottom, #ffffff 1px, transparent 1px)`,
-          backgroundSize: "20px 20px"
+          backgroundImage: `linear-gradient(to right, #00FF88 1px, transparent 1px),
+                            linear-gradient(to bottom, #00FF88 1px, transparent 1px)`,
+          backgroundSize: "28px 28px"
         }}
       />
+      {/* Soft Radial Ambient Glow */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,255,136,0.06)_0%,transparent_70%)] pointer-events-none z-0" />
 
-      {/* Center 2D Glowing Scientific Tomato Graphic */}
-      <div className="relative flex items-center justify-center select-none z-10 w-[240px] h-[240px]">
-        {/* Holographic grid beneath the tomato */}
-        <div 
-          className="absolute bottom-4 w-[180px] h-[45px] opacity-[0.08] pointer-events-none z-0"
-          style={{
-            backgroundImage: `linear-gradient(to right, #00E5FF 1.5px, transparent 1px),
-                              linear-gradient(to bottom, #00E5FF 1.5px, transparent 1px)`,
-            backgroundSize: "16px 8px",
-            transform: "perspective(150px) rotateX(65deg)",
-            maskImage: "radial-gradient(ellipse at center, black, transparent 75%)",
-            WebkitMaskImage: "radial-gradient(ellipse at center, black, transparent 75%)"
-          }}
-        />
+      {/* Main Center Stage */}
+      <div className="relative flex-1 flex items-center justify-center my-4 z-10">
 
-        {/* Pulsing Concentric Scan Waves */}
-        <div className="absolute w-[150px] h-[150px] border border-accent-green/15 rounded-full animate-[pulse-ring_4s_cubic-bezier(0.215,0.61,0.355,1)_infinite]" />
-        <div className="absolute w-[150px] h-[150px] border border-accent-blue/10 rounded-full animate-[pulse-ring_4s_cubic-bezier(0.215,0.61,0.355,1)_infinite_2s]" />
+        {/* ─── LEFT SIDE CARDS ─────────────────────────────────────────────────── */}
 
-        {/* Rotating Circular Scanner Rings */}
-        <div className="absolute w-[200px] h-[200px] border border-dashed border-accent-green/20 rounded-full animate-[spin_12s_linear_infinite]" />
-        <div className="absolute w-[170px] h-[170px] border border-dotted border-accent-blue/15 rounded-full animate-[spin_8s_linear_infinite_reverse]" />
-
-        {/* Conic-gradient Conical Radar Sweep */}
-        <div 
-          className="absolute w-[170px] h-[170px] rounded-full pointer-events-none opacity-[0.18] animate-[spin_4s_linear_infinite]"
-          style={{
-            background: "conic-gradient(from 0deg, rgba(45, 255, 106, 0.3) 0%, transparent 50%)"
-          }}
-        />
-
-        {/* Corner Target Locks */}
-        <div className="absolute w-[125px] h-[105px] pointer-events-none z-20">
-          <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-accent-blue/60" />
-          <div className="absolute top-0 right-0 w-3 h-3 border-t border-r border-accent-blue/60" />
-          <div className="absolute bottom-0 left-0 w-3 h-3 border-b border-l border-accent-blue/60" />
-          <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-accent-blue/60" />
+        {/* 1. MODEL CARD */}
+        <div className="absolute top-2 left-2 z-20 bg-[rgba(15,20,30,0.55)] border border-[rgba(0,255,180,0.15)] rounded-xl p-3.5 w-44 backdrop-blur-md shadow-lg hover:border-[rgba(0,255,180,0.4)] hover:shadow-[0_0_15px_rgba(0,255,136,0.15)] transition-all">
+          <div className="flex items-center gap-1.5 mb-1 text-[#00FF88]">
+            <Cpu size={14} />
+            <span className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">MODEL</span>
+          </div>
+          <div className="text-lg font-bold text-white tracking-wide">XGBoost</div>
+          <span className="text-[8.5px] text-slate-400 block mt-0.5 opacity-80">Regression + Classification</span>
         </div>
 
-        {/* Orbiting Particles */}
-        <div className="absolute w-[200px] h-[200px] pointer-events-none">
-          <div className="w-1.5 h-1.5 bg-accent-green shadow-[0_0_8px_#2DFF6A] rounded-full absolute top-1/2 left-1/2 -ml-0.75 -mt-0.75 animate-[orbit-1_5s_linear_infinite]" />
-          <div className="w-1 h-1 bg-accent-blue shadow-[0_0_6px_#00E5FF] rounded-full absolute top-1/2 left-1/2 -ml-0.5 -mt-0.5 animate-[orbit-2_7s_linear_infinite]" />
+        {/* 2. VERSION CARD */}
+        <div className="absolute top-36 left-2 z-20 bg-[rgba(15,20,30,0.55)] border border-[rgba(0,255,180,0.15)] rounded-xl p-3.5 w-44 backdrop-blur-md shadow-lg hover:border-[rgba(0,255,180,0.4)] hover:shadow-[0_0_15px_rgba(0,255,136,0.15)] transition-all">
+          <div className="flex items-center gap-1.5 mb-1 text-[#00FF88]">
+            <Layers size={14} />
+            <span className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">VERSION</span>
+          </div>
+          <div className="text-lg font-bold text-[#00FF88] tracking-wide">{activeModelInfo.version}</div>
+          <span className="text-[8.5px] text-slate-400 block mt-0.5 opacity-80">Current Active Model</span>
         </div>
 
-        {/* Tomato Graphic Wrapper */}
-        <div className="relative flex flex-col items-center justify-center">
-          {/* Leaf/Stem */}
-          <div className="w-3 h-4 bg-emerald-500 rounded-full absolute -top-3 shadow-[0_0_12px_rgba(16,185,129,0.4)] transform -rotate-12 z-20" />
-          
-          {/* Tomato Body with Breathing Glow */}
-          <div className="w-24 h-20 bg-gradient-to-tr from-red-600 to-red-500 rounded-[50%_50%_45%_45%] relative border border-red-500/20 flex items-center justify-center animate-[breathing-glow_4s_ease-in-out_infinite] z-10 overflow-hidden">
-            {/* Inner highlights */}
-            <div className="absolute top-2 left-4 w-5 h-2 bg-white/20 rounded-[50%]" />
-            
-            {/* Diagnostic Crosshair overlay */}
-            <div className="absolute inset-0 flex items-center justify-center opacity-20">
-              <div className="w-full h-[0.5px] bg-accent-green" />
-              <div className="h-full w-[0.5px] bg-accent-green absolute" />
-            </div>
+        {/* 3. FRESHNESS SCORE CARD (BOTTOM LEFT) */}
+        <div className="absolute bottom-2 left-2 z-20 bg-[rgba(15,20,30,0.55)] border border-[rgba(0,255,180,0.15)] rounded-xl p-3.5 w-44 backdrop-blur-md shadow-lg hover:border-[rgba(0,255,180,0.4)] transition-all">
+          <div className="flex items-center gap-1.5 mb-1 text-[#00FF88]">
+            <Leaf size={14} />
+            <span className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">FRESHNESS SCORE</span>
+          </div>
+          <div className="text-lg font-bold text-white tracking-wide">
+            98.42 <span className="text-xs font-normal text-slate-400 opacity-80">/100</span>
+          </div>
+          {/* Green Progress Bar */}
+          <div className="w-full bg-[#070B12] h-1.5 rounded-full mt-2 overflow-hidden border border-[rgba(0,255,180,0.12)]">
+            <div className="bg-[#00FF88] h-full rounded-full w-[98.42%] shadow-[0_0_8px_#00FF88]" />
+          </div>
+        </div>
 
-            {/* Blinking Sensor Nodes */}
-            <div className="absolute top-4 left-5 w-1 h-1 rounded-full bg-accent-green shadow-[0_0_6px_#2DFF6A] animate-[blink-slow_1.5s_infinite]" />
-            <div className="absolute top-10 right-4 w-1 h-1 rounded-full bg-accent-blue shadow-[0_0_6px_#00E5FF] animate-[blink-slow_2s_infinite_0.5s]" />
-            <div className="absolute bottom-5 left-7 w-1 h-1 rounded-full bg-accent-green shadow-[0_0_6px_#2DFF6A] animate-[blink-slow_1.8s_infinite_0.2s]" />
-            <div className="absolute bottom-6 right-8 w-1 h-1 rounded-full bg-accent-green shadow-[0_0_6px_#2DFF6A] animate-[blink-slow_2.2s_infinite_0.7s]" />
+        {/* ─── RIGHT SIDE CARDS ────────────────────────────────────────────────── */}
 
-            {/* Dynamic Step Text */}
-            <span className="text-[7.5px] font-mono text-accent-green tracking-wider uppercase bg-slate-950/90 px-1.5 py-0.5 rounded border border-accent-green/25 z-20">
-              {steps[stepIndex]}
-            </span>
+        {/* 4. ACCURACY CARD */}
+        <div className="absolute top-2 right-2 z-20 bg-[rgba(15,20,30,0.55)] border border-[rgba(0,255,180,0.15)] rounded-xl p-3.5 w-44 backdrop-blur-md shadow-lg hover:border-[rgba(0,255,180,0.4)] hover:shadow-[0_0_15px_rgba(0,255,136,0.15)] transition-all text-right">
+          <div className="flex items-center justify-end gap-1.5 mb-1 text-[#00FF88]">
+            <span className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">ACCURACY</span>
+            <Target size={14} />
+          </div>
+          <div className="text-lg font-bold text-[#00FF88] tracking-wide">{activeModelInfo.accuracy}%</div>
+          <span className="text-[8.5px] text-slate-400 block mt-0.5 opacity-80">Classification Accuracy</span>
+        </div>
+
+        {/* 5. R² SCORE CARD */}
+        <div className="absolute top-36 right-2 z-20 bg-[rgba(15,20,30,0.55)] border border-[rgba(0,255,180,0.15)] rounded-xl p-3.5 w-44 backdrop-blur-md shadow-lg hover:border-[rgba(0,255,180,0.4)] hover:shadow-[0_0_15px_rgba(0,255,136,0.15)] transition-all text-right">
+          <div className="flex items-center justify-end gap-1.5 mb-1 text-[#00FF88]">
+            <span className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">R² SCORE</span>
+            <TrendingUp size={14} />
+          </div>
+          <div className="text-lg font-bold text-[#00E5FF] tracking-wide">{activeModelInfo.r2.toFixed(4)}</div>
+          <span className="text-[8.5px] text-slate-400 block mt-0.5 opacity-80">Regression R²</span>
+        </div>
+
+        {/* 6. CATEGORY CARD (BOTTOM RIGHT) */}
+        <div className="absolute bottom-2 right-2 z-20 bg-[rgba(15,20,30,0.55)] border border-[rgba(0,255,180,0.15)] rounded-xl p-3.5 w-44 backdrop-blur-md shadow-lg hover:border-[rgba(0,255,180,0.4)] transition-all text-right">
+          <div className="flex items-center justify-end gap-1.5 mb-1 text-[#00FF88]">
+            <span className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">CATEGORY</span>
+            <Compass size={14} />
+          </div>
+          <div className="text-lg font-bold text-[#22FF88] tracking-wide">FRESH</div>
+          <span className="text-[8.5px] text-slate-400 block mt-0.5 opacity-80">Premium Quality</span>
+        </div>
+
+        {/* ─── CENTERSTAGE: 3D PHOTOREALISTIC TOMATO & HOLOGRAPHIC PLATFORM ────────── */}
+        <div className="relative w-[340px] h-[340px] flex items-center justify-center pointer-events-none">
+
+          {/* Volumetric Cyan / Green Light Cone */}
+          <div 
+            className="absolute bottom-10 w-[210px] h-[190px] z-0 pointer-events-none"
+            style={{
+              backgroundImage: "linear-gradient(to top, rgba(0, 255, 180, 0.22) 0%, rgba(0, 229, 255, 0.04) 65%, transparent 100%)",
+              clipPath: "polygon(22% 100%, 78% 100%, 100% 0%, 0% 0%)",
+            }}
+          />
+
+          {/* Holographic Concentric Platform Beneath Tomato */}
+          <div className="absolute bottom-12 w-[185px] h-[42px] rounded-full z-0 flex items-center justify-center">
+            {/* Multi-layered Concentric Pedestal Base */}
+            <div className="w-[185px] h-[42px] rounded-full border-2 border-[rgba(0,255,180,0.4)] bg-[#0D1320]/90 shadow-[0_0_25px_rgba(0,255,180,0.35)]" />
+            <div className="absolute w-[130px] h-[28px] rounded-full border border-[#00FF88] bg-[rgba(0,255,180,0.18)] shadow-[0_0_18px_#00FF88]" />
+            <div className="absolute w-[65px] h-[14px] rounded-full bg-[#00FF88] shadow-[0_0_15px_#00FF88] animate-pulse" />
           </div>
 
-          {/* Sweeping Laser Lines (Horizontal & Vertical) */}
-          <div className="absolute w-[110px] h-[1.5px] bg-gradient-to-r from-transparent via-accent-green to-transparent opacity-85 z-20 pointer-events-none animate-[laser-sweep-h_4s_ease-in-out_infinite]" />
-          <div className="absolute h-[90px] w-[1.5px] bg-gradient-to-b from-transparent via-accent-blue to-transparent opacity-60 z-20 pointer-events-none animate-[laser-sweep-v_3s_ease-in-out_infinite]" />
+          {/* 5 Rotating Holographic Transparent Cyan Rings Around Tomato */}
+          <div className="absolute w-[270px] h-[270px] border border-dashed border-[rgba(0,229,255,0.35)] rounded-full animate-[ring-rotate-1_11s_linear_infinite]" />
+          <div className="absolute w-[250px] h-[250px] border border-dotted border-[rgba(0,255,180,0.3)] rounded-full animate-[ring-rotate-2_15s_linear_infinite]" />
+          <div className="absolute w-[230px] h-[230px] border border-[rgba(0,229,255,0.22)] rounded-full animate-[ring-rotate-3_19s_linear_infinite]" />
+          <div className="absolute w-[210px] h-[210px] border border-dashed border-[rgba(0,255,180,0.25)] rounded-full animate-[ring-rotate-4_13s_linear_infinite]" />
+          <div className="absolute w-[190px] h-[190px] border border-[rgba(0,229,255,0.28)] rounded-full animate-[ring-rotate-5_22s_linear_infinite]" />
+
+          {/* Particle Field Drifting Upward */}
+          {[...Array(8)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-1.5 h-1.5 rounded-full bg-[#00FF88] shadow-[0_0_6px_#00FF88]"
+              style={{
+                left: `${25 + (i * 9)}%`,
+                bottom: `${18 + (i * 5)}%`,
+                animation: `particle-drift ${2.8 + (i * 0.7)}s ease-in-out infinite`,
+                animationDelay: `${i * 0.4}s`,
+              }}
+            />
+          ))}
+
+          {/* Photorealistic Tomato Floating ~30px Above Platform */}
+          <div className="relative z-10 flex items-center justify-center animate-[tomato-float_5.5s_ease-in-out_infinite] mb-8">
+            <img
+              src="/hologram_tomato.png"
+              alt="Photorealistic Tomato Hologram"
+              className="w-48 h-48 object-contain filter drop-shadow-[0_20px_35px_rgba(0,255,180,0.4)]"
+            />
+
+            {/* Faint Scanner Line Sweep */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-full">
+              <div className="w-full h-[1.5px] bg-gradient-to-r from-transparent via-[#00FF88] to-transparent shadow-[0_0_10px_#00FF88] absolute animate-[scan-line-sweep_3.8s_easeInOut_infinite]" />
+            </div>
+          </div>
         </div>
+
+        {/* ─── BOTTOM CENTER: STATUS & CONFIDENCE CARDS ───────────────────────── */}
+        <div className="absolute bottom-1 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1.5">
+          {/* STATUS CARD */}
+          <div className="bg-[rgba(15,20,30,0.7)] border border-[rgba(0,255,180,0.25)] rounded-xl px-4 py-1.5 text-center backdrop-blur-md shadow-md min-w-[130px]">
+            <div className="flex items-center justify-center gap-1 text-[#00FF88] mb-0.5">
+              <ShieldCheck size={12} />
+              <span className="text-[8px] text-slate-400 uppercase tracking-wider font-bold">STATUS</span>
+            </div>
+            <div className="text-xs font-bold text-[#00FF88] tracking-wider">READY</div>
+            <span className="text-[7.5px] text-slate-400 block opacity-80">System Operational</span>
+          </div>
+
+          {/* CONFIDENCE CARD */}
+          <div className="bg-[rgba(15,20,30,0.7)] border border-[rgba(0,255,180,0.15)] rounded-xl px-4 py-1 text-center backdrop-blur-md shadow-md min-w-[130px]">
+            <div className="flex items-center justify-center gap-1 text-[#00E5FF] mb-0.5">
+              <Activity size={11} />
+              <span className="text-[8px] text-slate-400 uppercase tracking-wider font-bold">CONFIDENCE</span>
+            </div>
+            <div className="text-[11px] font-bold text-[#00E5FF] tracking-wider">98.7%</div>
+            <span className="text-[7px] text-slate-400 block opacity-80">Overall Confidence</span>
+          </div>
+        </div>
+
       </div>
 
-      {/* Footer telemetry log */}
-      <div className="absolute bottom-3 left-6 right-6 font-mono text-[8px] text-slate-550 flex justify-between">
-        <div className="flex items-center gap-1.5">
-          <Activity size={10} className="text-accent-green" />
-          <span>SPECTRAL TARGET LOCK: VEG-QX-SOLANUM</span>
+      {/* ─── SPECTRAL SENSOR INDICATORS (6 GLOWING NODES ON THIN NEON ARC) ───────── */}
+      <div className="z-20 pt-2 border-t border-[rgba(0,255,180,0.12)]">
+        <div className="flex items-center justify-between px-3">
+          {spectralNodes.map((node) => (
+            <div key={node.name} className="flex flex-col items-center gap-1 group cursor-pointer">
+              {/* Glowing Circle Node */}
+              <div 
+                className="w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all duration-300 animate-[node-halo-pulse_3s_ease-in-out_infinite]"
+                style={{
+                  borderColor: node.color,
+                  backgroundColor: `${node.color}22`,
+                  boxShadow: `0 0 10px ${node.halo}`,
+                }}
+              >
+                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: node.color }} />
+              </div>
+
+              {/* Node Label & Wavelength */}
+              <div className="text-center">
+                <span className="text-[9px] font-bold block tracking-wider" style={{ color: node.color }}>
+                  {node.name}
+                </span>
+                <span className="text-[8px] text-slate-400 block font-mono opacity-80">
+                  {node.wavelength}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
-        <span>MATRIX ACTIVE</span>
       </div>
     </div>
   );

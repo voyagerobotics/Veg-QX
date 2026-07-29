@@ -63,51 +63,35 @@ export default function LandingPage() {
   const loadingBar = "█".repeat(numBlocks) + "░".repeat(10 - numBlocks);
 
   return (
-    <div className="space-y-4 text-slate-350">
-      {/* Top Telemetry Banner */}
-      <div className="border border-slate-900 bg-[#0B1020] px-5 py-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="bg-accent-green/10 text-accent-green border border-accent-green/20 px-2 py-0.5 rounded text-[8px] font-mono tracking-widest uppercase">
-              Operational Matrix
-            </span>
-            <span className="text-slate-650 font-mono text-[9px]">
-              TELEM_SYS_ID: VEG-QX-MISSION-CONTROL
-            </span>
-          </div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white font-sans uppercase flex items-center gap-3">
-            <img src="/voyage_robotics_logo.png" alt="Voyage Robotics Logo" className="w-8 h-8 object-contain filter drop-shadow-[0_0_8px_rgba(57,255,20,0.3)]" />
-            <span>VEG QX</span>
-            <span className="text-slate-500 font-mono text-xs font-normal lowercase tracking-normal">// precision AI for non-destructive vegetable analysis</span>
-          </h1>
-        </div>
-
-        <Link
-          href="/dashboard"
-          className="flex items-center gap-1.5 bg-accent-green text-slate-950 font-bold px-4 py-2 rounded-md text-xs transition-all duration-300 shadow-[0_0_12px_rgba(45,255,106,0.15)] hover:shadow-[0_0_20px_rgba(45,255,106,0.45)] hover:scale-[1.02] select-none shrink-0"
-        >
-          <span>Launch Telemetry Console</span>
-          <ArrowRight size={12} />
-        </Link>
-      </div>
-
+    <div className="space-y-4 text-slate-350 font-mono select-none">
       {/* Main Mission Control Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Left Console Column */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+        {/* Left Column (Span 2) */}
         <div className="lg:col-span-2 space-y-4">
           <TomatoScene />
           <SpectralWaves />
         </div>
 
-        {/* Right Console Column */}
+        {/* Right Column (Span 1) */}
         <div className="flex flex-col gap-4">
-          {/* Mission Status Console Card */}
-          <div className="border border-slate-900 bg-[#0B1020] rounded-xl p-4 font-mono text-[10px] text-slate-400 flex flex-col justify-between h-[180px] shadow-sm">
+          {/* Launch Telemetry Console Button */}
+          <div className="flex justify-end">
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-2 bg-accent-green hover:bg-emerald-400 text-slate-950 font-bold px-5 py-3 rounded-xl text-xs transition-all duration-300 shadow-[0_0_15px_rgba(45,255,106,0.2)] hover:shadow-[0_0_25px_rgba(45,255,106,0.5)] hover:scale-[1.02] select-none"
+            >
+              <span>Launch Telemetry Console</span>
+              <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          {/* Spacecraft Mission Status Card */}
+          <div className="border border-slate-900 bg-[#0B1020] rounded-2xl p-4 font-mono text-[10px] text-slate-400 flex flex-col justify-between h-[185px] shadow-lg">
             <div className="flex items-center justify-between border-b border-slate-950 pb-2 mb-1">
               <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">
                 Spacecraft Mission Status
               </span>
-              <ShieldCheck size={12} className="text-accent-green animate-pulse" />
+              <ShieldCheck size={14} className="text-accent-green animate-pulse" />
             </div>
 
             <div className="space-y-1.5">
@@ -143,13 +127,13 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Mission Terminal logs */}
-          <div className="border border-slate-900 bg-[#0B1020] rounded-xl p-4 flex flex-col justify-between h-[295px] shadow-sm">
+          {/* Mission Console Terminal Card */}
+          <div className="border border-slate-900 bg-[#0B1020] rounded-2xl p-4 flex flex-col justify-between h-[360px] shadow-lg">
             <div className="flex items-center justify-between border-b border-slate-950 pb-2 mb-2 font-mono">
               <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">
                 Mission Console Terminal
               </span>
-              <TerminalIcon size={12} className="text-accent-blue animate-pulse" />
+              <TerminalIcon size={14} className="text-accent-blue animate-pulse" />
             </div>
 
             {/* Logs Window */}
@@ -158,7 +142,7 @@ export default function LandingPage() {
               className="flex-1 overflow-y-auto font-mono text-[9.5px] text-slate-400 space-y-1.5 pr-1 scrollbar-thin"
             >
               {logs.length === 0 ? (
-                <div className="text-slate-655 animate-pulse">[ AWAITING SENSOR TELEMETRY STREAM... ]</div>
+                <div className="text-slate-600 animate-pulse">[ AWAITING SENSOR TELEMETRY STREAM... ]</div>
               ) : (
                 logs.map((log, index) => (
                   <div key={index} className="leading-relaxed">
@@ -176,42 +160,6 @@ export default function LandingPage() {
               <span>BUFFER_CAP: 15_LINES</span>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Model Stats Section */}
-      <div className="space-y-3 pt-2">
-        <h2 className="text-[9px] uppercase tracking-widest text-slate-500 font-mono font-bold">
-          ACTIVE ML TELEMETRY PARAMETERS
-        </h2>
-        <ModelStatsCard />
-      </div>
-
-      {/* Mission Diagnostics Detail Modules */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-        <div className="border border-slate-900 bg-[#0B1020] rounded-xl p-4 shadow-sm">
-          <div className="flex items-center gap-2 mb-2 border-b border-slate-950/40 pb-1.5">
-            <span className="text-[9px] font-mono text-accent-blue">01 // TELEMETRY_INGEST</span>
-          </div>
-          <p className="text-[11px] text-slate-400 font-sans leading-relaxed">
-            AS7341 spectral reflectance values are computed across six visual/NIR bands (Blue, Green, Yellow, Orange, Red, NIR). Built-in ESP32 pipelines data automatically over serial interfaces.
-          </p>
-        </div>
-        <div className="border border-slate-900 bg-[#0B1020] rounded-xl p-4 shadow-sm">
-          <div className="flex items-center gap-2 mb-2 border-b border-slate-950/40 pb-1.5">
-            <span className="text-[9px] font-mono text-accent-blue">02 // VEG_INDEX_COMPUTE</span>
-          </div>
-          <p className="text-[11px] text-slate-400 font-sans leading-relaxed">
-            Vegetation indices like NDVI, GNDVI, and RVI are automatically computed on incoming raw telemetry readings to trace moisture levels and structural cell degradation.
-          </p>
-        </div>
-        <div className="border border-slate-900 bg-[#0B1020] rounded-xl p-4 shadow-sm">
-          <div className="flex items-center gap-2 mb-2 border-b border-slate-950/40 pb-1.5">
-            <span className="text-[9px] font-mono text-accent-blue">03 // DUAL_PIPELINE_LEARNING</span>
-          </div>
-          <p className="text-[11px] text-slate-400 font-sans leading-relaxed">
-            Inference packets are logged. Model retraining averages position scans to remove Gaussian sensor noise before deploying updated XGBoost weights into production.
-          </p>
         </div>
       </div>
     </div>

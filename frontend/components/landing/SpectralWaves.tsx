@@ -1,87 +1,151 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { useEffect, useRef } from "react";
 
-const bands = [
-  { name: "Blue", color: "rgba(59, 130, 246, 0.4)", delay: 0 },
-  { name: "Green", color: "rgba(16, 185, 129, 0.4)", delay: 0.2 },
-  { name: "Yellow", color: "rgba(234, 179, 8, 0.4)", delay: 0.4 },
-  { name: "Orange", color: "rgba(249, 115, 22, 0.4)", delay: 0.6 },
-  { name: "Red", color: "rgba(239, 68, 68, 0.4)", delay: 0.8 },
-  { name: "NIR", color: "rgba(139, 92, 246, 0.4)", delay: 1.0 },
+const spectralBands = [
+  { name: "BLUE", wavelength: "450nm", color: "#3B82F6", freq: 0.014, amp: 34, phase: 0.0, speed: 0.024 },
+  { name: "GREEN", wavelength: "530nm", color: "#10B981", freq: 0.018, amp: 26, phase: 1.4, speed: 0.019 },
+  { name: "YELLOW", wavelength: "590nm", color: "#EAB308", freq: 0.012, amp: 22, phase: 2.6, speed: 0.016 },
+  { name: "ORANGE", wavelength: "630nm", color: "#F97316", freq: 0.022, amp: 32, phase: 3.8, speed: 0.022 },
+  { name: "RED", wavelength: "670nm", color: "#EF4444", freq: 0.015, amp: 19, phase: 4.9, speed: 0.015 },
+  { name: "NIR", wavelength: "850nm", color: "#B56EFF", freq: 0.020, amp: 42, phase: 5.6, speed: 0.027 },
 ];
 
 export default function SpectralWaves() {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let animationFrameId: number;
+    let time = 0;
+
+    const render = () => {
+      time += 0.03;
+      const width = canvas.width;
+      const height = canvas.height;
+
+      ctx.clearRect(0, 0, width, height);
+
+      // ─── 1. Oscilloscope Laboratory Grid Lines ─────────────────────────────
+      ctx.strokeStyle = "rgba(0, 255, 180, 0.05)";
+      ctx.lineWidth = 1;
+
+      // Vertical grid lines
+      const gridSpacingX = width / 14;
+      for (let x = 0; x <= width; x += gridSpacingX) {
+        ctx.beginPath();
+        ctx.setLineDash([2, 3]);
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
+
+      // Horizontal grid lines
+      const gridSpacingY = height / 6;
+      for (let y = 0; y <= height; y += gridSpacingY) {
+        ctx.beginPath();
+        ctx.setLineDash([2, 3]);
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]); // Reset line dash
+
+      // Baseline axis line
+      ctx.strokeStyle = "rgba(0, 229, 255, 0.15)";
+      ctx.beginPath();
+      ctx.moveTo(0, height * 0.55);
+      ctx.lineTo(width, height * 0.55);
+      ctx.stroke();
+
+      // ─── 2. Smooth Bezier Interpolated Waveform Curves ────────────────────
+      spectralBands.forEach((band) => {
+        ctx.save();
+        ctx.strokeStyle = band.color;
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = band.color;
+        ctx.shadowBlur = 8;
+
+        ctx.beginPath();
+
+        const centerY = height * 0.55;
+        let prevX = 0;
+        let prevY = centerY + Math.sin(time * band.speed + band.phase) * band.amp;
+
+        ctx.moveTo(prevX, prevY);
+
+        const step = 5;
+        for (let x = step; x <= width; x += step) {
+          const y =
+            centerY +
+            Math.sin(x * band.freq + time * band.speed + band.phase) * band.amp +
+            Math.cos(x * 0.009 - time * 0.016) * 10;
+
+          const cpX = (prevX + x) / 2;
+          const cpY = (prevY + y) / 2;
+
+          ctx.quadraticCurveTo(prevX, prevY, cpX, cpY);
+
+          prevX = x;
+          prevY = y;
+        }
+
+        ctx.lineTo(width, prevY);
+        ctx.stroke();
+        ctx.restore();
+      });
+
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
   return (
-    <div className="bg-[#0B1020] border border-slate-900 rounded-xl p-4 relative overflow-hidden h-[155px] flex flex-col justify-between shadow-md">
-      <div className="font-mono text-[9px] text-slate-500 uppercase tracking-widest block mb-1">
-        SPECTRAL_REFLECTANCE_TELEMETRY_WAVES
+    <div className="bg-[#070B12] border border-[rgba(0,255,180,0.15)] rounded-2xl p-5 shadow-[0_0_30px_rgba(0,255,136,0.05)] relative overflow-hidden flex flex-col justify-between select-none font-mono min-h-[265px]">
+      {/* Header Bar */}
+      <div className="flex items-center justify-between border-b border-[rgba(0,255,180,0.12)] pb-3 mb-2 z-10">
+        <div>
+          <h3 className="text-xs font-bold text-[#00FF88] uppercase tracking-[0.15em] flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#00E5FF] animate-pulse" />
+            SPECTRAL REFLECTANCE TELEMETRY: SPECTRALWAVES
+          </h3>
+        </div>
+        <span className="text-[9px] text-[#00E5FF] tracking-[0.12em] uppercase font-semibold opacity-90">
+          LABORATORY OSCILLOSCOPE ANALYZER // 60 FPS LIVE
+        </span>
       </div>
 
-      <div className="flex-1 flex items-center justify-around gap-2 px-2 relative min-h-[60px]">
-        {/* Animated wave lines behind */}
-        <div className="absolute inset-0 flex items-center justify-center opacity-45">
-          <svg className="w-full h-full" viewBox="0 0 400 100" preserveAspectRatio="none">
-            {bands.map((band, idx) => (
-              <motion.path
-                key={band.name}
-                d={`M 0,${50 + idx * 4} Q 100,${20 + idx * 6} 200,${50 + idx * 2} T 400,${50 + idx * 3}`}
-                fill="none"
-                stroke={idx % 2 === 0 ? "rgba(0, 229, 255, 0.45)" : "rgba(45, 255, 106, 0.45)"}
-                strokeWidth="1.5"
-                initial={{ pathLength: 0, opacity: 0 }}
-                animate={{
-                  pathLength: 1,
-                  opacity: [0.2, 0.8, 0.2],
-                  d: [
-                    `M 0,${50 + idx * 4} Q 100,${20 + idx * 6} 200,${50 + idx * 2} T 400,${50 + idx * 3}`,
-                    `M 0,${55 - idx * 2} Q 120,${60 + idx * 4} 240,${40 - idx * 3} T 400,${55 + idx * 2}`,
-                    `M 0,${50 + idx * 4} Q 100,${20 + idx * 6} 200,${50 + idx * 2} T 400,${50 + idx * 3}`
-                  ]
-                }}
-                transition={{
-                  duration: 5 + idx,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-              />
-            ))}
-          </svg>
-        </div>
+      {/* Canvas Oscilloscope Display */}
+      <div className="relative w-full h-[150px] rounded-xl overflow-hidden bg-[#050810] border border-[rgba(0,255,180,0.12)] shadow-inner flex items-center justify-center">
+        <canvas
+          ref={canvasRef}
+          width={800}
+          height={150}
+          className="w-full h-full object-cover"
+        />
+      </div>
 
-        {/* Legend pills with interactive glows */}
-        {bands.map((band, idx) => {
-          const pillColor = idx % 2 === 0 ? "rgba(0, 229, 255, 0.45)" : "rgba(45, 255, 106, 0.45)";
-          return (
-            <div key={band.name} className="flex flex-col items-center gap-1 z-10">
-              <motion.div
-                className="w-2.5 h-8 rounded-full cursor-help relative group"
-                style={{ backgroundColor: pillColor }}
-                animate={{
-                  scaleY: [1, 1.3, 0.9, 1.15, 1],
-                  boxShadow: [
-                    `0 0 4px ${pillColor}`,
-                    `0 0 12px ${pillColor}`,
-                    `0 0 4px ${pillColor}`
-                  ]
-                }}
-                transition={{
-                  duration: 2.5 + Math.random() * 2,
-                  repeat: Infinity,
-                  delay: band.delay,
-                }}
-              >
-                {/* Tooltip info */}
-                <div className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-[8px] text-slate-355 font-mono shadow-lg whitespace-nowrap z-30">
-                  {band.name} telemetry active
-                </div>
-              </motion.div>
-              <span className="text-[8px] font-mono font-semibold text-slate-500 uppercase">
-                {band.name}
-              </span>
-            </div>
-          );
-        })}
+      {/* Bottom Wavelength Labels Legend Row */}
+      <div className="grid grid-cols-6 gap-2 pt-3 border-t border-[rgba(0,255,180,0.12)] text-center z-10">
+        {spectralBands.map((band) => (
+          <div key={band.name} className="flex flex-col items-center">
+            <span className="text-[10px] font-bold tracking-widest" style={{ color: band.color }}>
+              {band.name}
+            </span>
+            <span className="text-[9px] text-slate-400 tracking-wider block font-mono mt-0.5 opacity-80">
+              {band.wavelength}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );

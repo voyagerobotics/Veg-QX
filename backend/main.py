@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os
+from pathlib import Path
 
 from config import CORS_ORIGINS
 from services.database_service import init_database
@@ -30,6 +31,7 @@ from config import BASE_DIR
 
 def ensure_logo_copied():
     logo_sources = [
+        str(BASE_DIR / "static" / "voyage_robotics_logo.png"),
         r"D:\voyage robotics VEG QX\ml model\voyage_robotics_logo.png",
         r"C:\Users\ASUS\.gemini\antigravity-ide\brain\9b9c335d-171d-4c70-8004-2ebc829920c2\media__1785308917848.png"
     ]
@@ -38,15 +40,33 @@ def ensure_logo_copied():
             try:
                 public_dir = BASE_DIR.parent / "frontend" / "public"
                 public_dir.mkdir(parents=True, exist_ok=True)
-                shutil.copy(src, public_dir / "voyage_robotics_logo.png")
+                target_public = public_dir / "voyage_robotics_logo.png"
+                if Path(src).resolve() != target_public.resolve():
+                    shutil.copy(src, target_public)
 
                 static_dir = BASE_DIR / "static"
                 static_dir.mkdir(parents=True, exist_ok=True)
-                shutil.copy(src, static_dir / "voyage_robotics_logo.png")
+                target_static = static_dir / "voyage_robotics_logo.png"
+                if Path(src).resolve() != target_static.resolve():
+                    shutil.copy(src, target_static)
                 print(f"  ✔ Logo copied from {src} to frontend/public and backend/static.")
                 break
             except Exception as e:
                 print(f"  Note copying logo: {e}")
+
+    tomato_sources = [
+        r"C:\Users\ASUS\.gemini\antigravity-ide\brain\9b9c335d-171d-4c70-8004-2ebc829920c2\hologram_tomato_1785314410202.png",
+    ]
+    for src in tomato_sources:
+        if os.path.exists(src):
+            try:
+                public_dir = BASE_DIR.parent / "frontend" / "public"
+                public_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy(src, public_dir / "hologram_tomato.png")
+                print(f"  ✔ Hologram tomato copied to {public_dir / 'hologram_tomato.png'}")
+                break
+            except Exception as e:
+                print(f"  Note copying tomato: {e}")
 
 ensure_logo_copied()
 
@@ -111,6 +131,7 @@ app.include_router(retraining.router)
 
 @app.get("/")
 def read_root():
+    ensure_logo_copied()
     return {
         "title": "Tomato Freshness Detection API",
         "version": "1.1",
