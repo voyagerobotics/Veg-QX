@@ -40,11 +40,20 @@ backend/.env
 Thumbs.db
 
 # Machine Learning models (serialized model checkpoints)
-models/*.pkl
+!models/*.pkl
+!models/tomato_freshness_pipeline_v1.1.pkl
+!models/tomato_freshness_pipeline_v1.pkl
 models/*.h5
 models/*.pt
 models/*.onnx
 
-# Large datasets / CSV files (optional: comment out if you want to track them in git)
+# Large datasets / CSV files
 *.csv
-datasets/
+!Tomato_Multispectral_Realistic_100k.csv
+!datasets/
+!datasets/*.csv
+!datasets/*.db
+
+# Retraining directory
+!retraining/
+!retraining/**
