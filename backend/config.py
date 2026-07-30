@@ -28,6 +28,8 @@ RETRAINING_DIR.mkdir(parents=True, exist_ok=True)
 CORS_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://veg-qx.vercel.app",
+    "*"
 ]
 
 # ─── Serial / USB ─────────────────────────────────────────────────────────────
