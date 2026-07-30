@@ -40,6 +40,7 @@ from services.database_service import (
     archive_verified_predictions,
     log_retraining_run,
     upsert_model_version,
+    get_all_model_versions,
 )
 
 # ─── Mutex Lock & Progress State ──────────────────────────────────────────────
