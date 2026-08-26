@@ -16,7 +16,7 @@ export default function HistoryPage() {
   // Verification state modal
   const [selectedRecord, setSelectedRecord] = useState<PredictionRecord | null>(null);
   const [verifiedCategory, setVerifiedCategory] = useState<string>("Fresh");
-  const [verifiedScore, setVerifiedScore] = useState<number>(80);
+  const [verifiedScore, setVerifiedScore] = useState<number | string>(80);
   const [verifiedNotes, setVerifiedNotes] = useState<string>("");
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [bulkLoading, setBulkLoading] = useState(false);
@@ -67,10 +67,11 @@ export default function HistoryPage() {
     if (!selectedRecord?.id) return;
     setVerifyLoading(true);
     try {
+      const scoreToSubmit = typeof verifiedScore === "number" ? verifiedScore : parseFloat(verifiedScore) || 0;
       const res = await api.verifyPrediction(
         selectedRecord.id,
         verifiedCategory,
-        verifiedScore,
+        scoreToSubmit,
         verifiedNotes
       );
       if (res.success) {
@@ -136,35 +137,35 @@ export default function HistoryPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="border-b border-slate-900 pb-4 flex items-center justify-between">
+      <div className="border-b border-slate-200 dark:border-slate-800 pb-4 flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white font-mono tracking-wide uppercase flex items-center gap-2">
-            <History size={24} className="text-accent-green" />
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white font-mono tracking-wide uppercase flex items-center gap-2">
+            <History size={24} className="text-emerald-600 dark:text-accent-green" />
             Prediction Audit History
           </h2>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Browse and query historical database records, and verify labels to build the training set.
           </p>
         </div>
         <button
           onClick={loadHistory}
-          className="bg-slate-900 border border-slate-800 rounded px-3 py-2 text-slate-400 hover:text-slate-200 transition-colors"
+          className="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg px-3 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors shadow-xs"
         >
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
         </button>
       </div>
 
       {/* Query Filters */}
-      <div className="glass-panel rounded-xl p-4 border border-slate-800/40 flex flex-wrap gap-4 items-center">
+      <div className="glass-panel rounded-xl p-4 border border-slate-200 dark:border-slate-800/40 flex flex-wrap gap-4 items-center shadow-sm">
         <div className="flex items-center gap-2 font-mono text-xs">
-          <span className="text-slate-500">Filter Category:</span>
+          <span className="text-slate-600 dark:text-slate-400 font-semibold">Filter Category:</span>
           <select
             value={categoryFilter}
             onChange={(e) => {
               setCategoryFilter(e.target.value);
               setOffset(0);
             }}
-            className="bg-slate-900 border border-slate-800 rounded px-3 py-1 text-xs text-slate-200 outline-none focus:border-accent-green"
+            className="bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-emerald-500 shadow-xs font-mono"
           >
             <option value="">All Categories</option>
             <option value="Fresh">Fresh</option>
@@ -178,24 +179,24 @@ export default function HistoryPage() {
           <button
             onClick={handleBulkVerify}
             disabled={bulkLoading}
-            className="flex items-center gap-1.5 px-3 py-1 bg-accent-green/10 border border-accent-green/20 hover:bg-accent-green/20 text-accent-green rounded text-[11px] font-mono font-bold transition-all disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-300 dark:border-emerald-500/20 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 rounded-lg text-[11px] font-mono font-bold transition-all disabled:opacity-50 shadow-xs"
           >
             <CheckSquare size={12} />
             <span>{bulkLoading ? "VERIFYING ALL..." : "VERIFY ALL ON PAGE"}</span>
           </button>
         )}
 
-        <div className="ml-auto text-[12px] font-mono text-slate-500">
+        <div className="ml-auto text-[12px] font-mono text-slate-500 font-medium">
           Showing {offset + 1} - {Math.min(offset + limit, total)} of {total} records
         </div>
       </div>
 
       {/* Table */}
-      <div className="glass-panel rounded-2xl border border-slate-800/50 overflow-hidden">
+      <div className="glass-panel rounded-2xl border border-slate-200 dark:border-slate-800/50 overflow-hidden shadow-sm dark:shadow-md">
         <div className="overflow-x-auto">
-          <table className="w-full font-mono text-[12px] text-slate-300 text-left border-collapse">
+          <table className="w-full font-mono text-[12px] text-slate-700 dark:text-slate-300 text-left border-collapse">
             <thead>
-              <tr className="bg-slate-950/40 text-slate-500 border-b border-slate-900 uppercase tracking-wider text-[10px]">
+              <tr className="bg-slate-50 dark:bg-slate-950/40 text-slate-500 border-b border-slate-200 dark:border-slate-800 uppercase tracking-wider text-[10px]">
                 <th className="p-3">ID</th>
                 <th className="p-3">TIMESTAMP</th>
                 <th className="p-3">TOMATO_ID</th>
@@ -208,23 +209,23 @@ export default function HistoryPage() {
                 <th className="p-3 text-right">ACTION</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-900/60">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-900/60">
               {history.length > 0 ? (
                 history.map((row) => (
-                  <tr key={row.id} className="hover:bg-slate-950/20">
-                    <td className="p-3 font-semibold text-slate-400">db_{row.id}</td>
+                  <tr key={row.id} className="hover:bg-slate-50 dark:hover:bg-slate-950/20">
+                    <td className="p-3 font-semibold text-slate-500 dark:text-slate-400">db_{row.id}</td>
                     <td className="p-3 text-slate-500">{formatTimestamp(row.timestamp)}</td>
-                    <td className="p-3 font-bold text-slate-400">{row.tomato_id || "N/A"}</td>
+                    <td className="p-3 font-bold text-slate-800 dark:text-slate-400">{row.tomato_id || "N/A"}</td>
                     <td className="p-3">{row.position || "N/A"}</td>
                     <td className="p-3">{row.rvi.toFixed(2)}</td>
                     <td className="p-3">{row.ndvi.toFixed(4)}</td>
-                    <td className="p-3 text-white font-bold">{row.freshness_score.toFixed(1)}</td>
+                    <td className="p-3 text-slate-900 dark:text-white font-bold">{row.freshness_score.toFixed(1)}</td>
                     <td className="p-3 text-slate-500">{row.model_version}</td>
                     <td className="p-3">
                       <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-extrabold uppercase ${
-                        row.category === "Fresh" ? "bg-emerald-500/10 text-emerald-400" :
-                        row.category === "Aging" ? "bg-amber-500/10 text-amber-400" :
-                        "bg-red-500/10 text-red-400"
+                        row.category === "Fresh" ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20" :
+                        row.category === "Aging" ? "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20" :
+                        "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/20"
                       }`}>
                         {row.category}
                       </span>
@@ -232,7 +233,7 @@ export default function HistoryPage() {
                     <td className="p-3 text-right">
                       <button
                         onClick={() => handleOpenVerify(row)}
-                        className="flex items-center gap-1 ml-auto px-2.5 py-1 bg-slate-900 border border-slate-800 hover:border-accent-green hover:text-accent-green rounded text-[11px] font-mono font-bold transition-all"
+                        className="flex items-center gap-1 ml-auto px-2.5 py-1 bg-slate-100 hover:bg-emerald-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 hover:border-emerald-500 text-slate-700 hover:text-emerald-700 dark:text-slate-300 dark:hover:text-emerald-400 rounded-md text-[11px] font-mono font-bold transition-all shadow-xs"
                       >
                         <CheckSquare size={10} />
                         <span>VERIFY</span>
@@ -242,7 +243,7 @@ export default function HistoryPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={10} className="p-8 text-center text-slate-600">
+                  <td colSpan={10} className="p-8 text-center text-slate-500">
                     No prediction records found.
                   </td>
                 </tr>
@@ -252,20 +253,20 @@ export default function HistoryPage() {
         </div>
 
         {/* Pagination buttons */}
-        <div className="p-4 border-t border-slate-900 flex items-center justify-between font-mono text-[12px] text-slate-500">
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between font-mono text-[12px] text-slate-600 dark:text-slate-400">
           <button
             onClick={handlePrevPage}
             disabled={offset === 0}
-            className="flex items-center gap-1 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:text-white transition-colors"
+            className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 px-3 py-1.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:text-slate-900 dark:hover:text-white transition-colors font-semibold"
           >
             <ChevronLeft size={12} />
             <span>PREV</span>
           </button>
-          <span>PAGE {offset / limit + 1}</span>
+          <span className="font-bold">PAGE {offset / limit + 1}</span>
           <button
             onClick={handleNextPage}
             disabled={offset + limit >= total}
-            className="flex items-center gap-1 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:text-white transition-colors"
+            className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 px-3 py-1.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:text-slate-900 dark:hover:text-white transition-colors font-semibold"
           >
             <span>NEXT</span>
             <ChevronRight size={12} />
@@ -275,41 +276,41 @@ export default function HistoryPage() {
 
       {/* Verification Modal Panel */}
       {selectedRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="glass-panel w-full max-w-md rounded-2xl border border-slate-850 p-6 space-y-4 shadow-[0_10px_30px_rgba(0,0,0,0.6)]">
-            <div className="flex items-center justify-between border-b border-slate-900 pb-3">
-              <h3 className="text-xs font-semibold text-white font-mono uppercase tracking-wider flex items-center gap-2">
-                <CheckCircle2 size={14} className="text-accent-green" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <h3 className="text-xs font-bold text-slate-900 dark:text-white font-mono uppercase tracking-wider flex items-center gap-2">
+                <CheckCircle2 size={14} className="text-emerald-600 dark:text-emerald-400" />
                 Submit verified diagnostic label
               </h3>
               <button
                 onClick={() => setSelectedRecord(null)}
-                className="text-slate-500 hover:text-slate-300 font-mono"
+                className="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 font-mono font-semibold"
               >
                 [ESC]
               </button>
             </div>
 
             <form onSubmit={handleVerifySubmit} className="space-y-4 text-xs font-mono">
-              <div className="bg-slate-950/80 p-3 rounded-lg border border-slate-900 space-y-1.5 text-[10px] text-slate-500">
-                <div>PREDICTED SCORE: <span className="text-white font-bold">{selectedRecord.freshness_score.toFixed(2)}</span></div>
-                <div>PREDICTED CLASS: <span className="text-white font-bold">{selectedRecord.category}</span></div>
-                <div>INPUT TELEMETRY: <span className="text-slate-400">Blue:{selectedRecord.blue} / NIR:{selectedRecord.nir}</span></div>
+              <div className="bg-slate-50 dark:bg-slate-950/80 p-3 rounded-lg border border-slate-200 dark:border-slate-800 space-y-1.5 text-[10px] text-slate-600 dark:text-slate-400">
+                <div>PREDICTED SCORE: <span className="text-slate-900 dark:text-white font-bold">{selectedRecord.freshness_score.toFixed(2)}</span></div>
+                <div>PREDICTED CLASS: <span className="text-slate-900 dark:text-white font-bold">{selectedRecord.category}</span></div>
+                <div>INPUT TELEMETRY: <span className="text-slate-700 dark:text-slate-300">Blue:{selectedRecord.blue} / NIR:{selectedRecord.nir}</span></div>
               </div>
 
               {/* Verified Category selection */}
               <div>
-                <label className="block mb-1.5 uppercase tracking-widest text-slate-500 text-[9px]">Verified Category</label>
+                <label className="block mb-1.5 uppercase tracking-widest text-slate-500 text-[9px] font-semibold">Verified Category</label>
                 <div className="flex gap-2">
                   {["Fresh", "Aging", "Spoiling"].map((cat) => (
                     <button
                       key={cat}
                       type="button"
                       onClick={() => setVerifiedCategory(cat)}
-                      className={`flex-1 py-2 border rounded font-semibold text-center text-[10px] transition-all uppercase ${
+                      className={`flex-1 py-2 border rounded-lg font-bold text-center text-[10px] transition-all uppercase ${
                         verifiedCategory === cat
-                          ? "border-accent-green bg-accent-green/10 text-accent-green"
-                          : "border-slate-850 bg-slate-900 text-slate-400"
+                          ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 shadow-xs"
+                          : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400"
                       }`}
                     >
                       {cat}
@@ -320,34 +321,34 @@ export default function HistoryPage() {
 
               {/* Verified Score */}
               <div>
-                <label className="block mb-1.5 uppercase tracking-widest text-slate-500 text-[9px]">Verified Freshness Score (0-100)</label>
+                <label className="block mb-1.5 uppercase tracking-widest text-slate-500 text-[9px] font-semibold">Verified Freshness Score (0-100)</label>
                 <input
                   type="number"
                   min="0"
                   max="100"
-                  step="0.1"
+                  step="any"
                   value={verifiedScore}
-                  onChange={(e) => setVerifiedScore(parseFloat(e.target.value) || 0)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200 outline-none focus:border-accent-green font-mono"
+                  onChange={(e) => setVerifiedScore(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-200 outline-none focus:border-emerald-500 font-mono shadow-xs"
                 />
               </div>
 
               {/* Verified Notes */}
               <div>
-                <label className="block mb-1.5 uppercase tracking-widest text-slate-500 text-[9px]">Verification Notes</label>
+                <label className="block mb-1.5 uppercase tracking-widest text-slate-500 text-[9px] font-semibold">Verification Notes</label>
                 <textarea
                   value={verifiedNotes}
                   onChange={(e) => setVerifiedNotes(e.target.value)}
                   placeholder="e.g. slight yellowing near stem, texture soft..."
                   rows={3}
-                  className="w-full bg-slate-900 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200 outline-none focus:border-accent-green font-mono placeholder:text-slate-650"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-200 outline-none focus:border-emerald-500 font-mono placeholder:text-slate-400 shadow-xs"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={verifyLoading}
-                className="w-full bg-accent-green text-slate-950 font-semibold py-2 rounded text-xs hover:bg-opacity-95 transition-all shadow-[0_0_15px_rgba(57,255,20,0.15)] uppercase tracking-wider font-mono"
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-lg text-xs transition-all shadow-[0_4px_14px_rgba(16,185,129,0.3)] uppercase tracking-wider font-mono"
               >
                 {verifyLoading ? "SAVING TELEMETRY..." : "LOG VERIFICATION RECORD"}
               </button>
