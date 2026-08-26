@@ -3,7 +3,6 @@
 import { useEffect, useState, useRef } from "react";
 import TomatoScene from "@/components/landing/TomatoScene";
 import SpectralWaves from "@/components/landing/SpectralWaves";
-import ModelStatsCard from "@/components/landing/ModelStatsCard";
 import Link from "next/link";
 import { ArrowRight, Terminal as TerminalIcon, ShieldCheck } from "lucide-react";
 
@@ -63,7 +62,7 @@ export default function LandingPage() {
   const loadingBar = "█".repeat(numBlocks) + "░".repeat(10 - numBlocks);
 
   return (
-    <div className="space-y-4 text-slate-350 font-mono select-none">
+    <div className="space-y-4 text-slate-700 dark:text-slate-350 font-mono select-none">
       {/* Main Mission Control Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
         {/* Left Column (Span 2) */}
@@ -78,7 +77,7 @@ export default function LandingPage() {
           <div className="flex justify-end">
             <Link
               href="/dashboard"
-              className="flex items-center gap-2 bg-accent-green hover:bg-emerald-400 text-slate-950 font-bold px-5 py-3 rounded-xl text-xs transition-all duration-300 shadow-[0_0_15px_rgba(45,255,106,0.2)] hover:shadow-[0_0_25px_rgba(45,255,106,0.5)] hover:scale-[1.02] select-none"
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 py-3 rounded-xl text-xs transition-all duration-300 shadow-[0_4px_14px_rgba(16,185,129,0.3)] hover:shadow-[0_6px_20px_rgba(16,185,129,0.4)] hover:scale-[1.02] select-none"
             >
               <span>Launch Telemetry Console</span>
               <ArrowRight size={14} />
@@ -86,68 +85,68 @@ export default function LandingPage() {
           </div>
 
           {/* Spacecraft Mission Status Card */}
-          <div className="border border-slate-900 bg-[#0B1020] rounded-2xl p-4 font-mono text-[10px] text-slate-400 flex flex-col justify-between h-[185px] shadow-lg">
-            <div className="flex items-center justify-between border-b border-slate-950 pb-2 mb-1">
+          <div className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B1020] rounded-2xl p-4 font-mono text-[10px] text-slate-600 dark:text-slate-400 flex flex-col justify-between h-[185px] shadow-sm dark:shadow-lg transition-colors duration-200">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800/80 pb-2 mb-1">
               <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">
                 Spacecraft Mission Status
               </span>
-              <ShieldCheck size={14} className="text-accent-green animate-pulse" />
+              <ShieldCheck size={14} className="text-emerald-600 dark:text-emerald-400 animate-pulse" />
             </div>
 
             <div className="space-y-1.5">
-              <div className="flex justify-between items-center text-[11px] font-bold text-white border-b border-slate-950/40 pb-1">
+              <div className="flex justify-between items-center text-[11px] font-bold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-900/60 pb-1">
                 <span>SYSTEM_READY</span>
-                <span className="text-accent-green">██████████ 100%</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">██████████ 100%</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">SENSOR ARRAY</span>
-                <span className="text-accent-green font-semibold">[ ONLINE ]</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold">[ ONLINE ]</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">INFERENCE ENGINE</span>
-                <span className="text-accent-green font-semibold">[ ACTIVE ]</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold">[ ACTIVE ]</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">MODEL CONFIDENCE</span>
-                <span className="text-accent-blue font-semibold">[ 99.21% ]</span>
+                <span className="text-sky-600 dark:text-sky-400 font-bold">[ 99.21% ]</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">DATABASE</span>
-                <span className="text-accent-green font-semibold">[ CONNECTED ]</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold">[ CONNECTED ]</span>
               </div>
             </div>
 
-            <div className="border-t border-slate-950/60 pt-2 flex justify-between items-center">
+            <div className="border-t border-slate-200 dark:border-slate-800/80 pt-2 flex justify-between items-center">
               <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">
                 SCAN PROGRESS
               </span>
-              <span className="text-accent-green font-bold">
+              <span className="text-emerald-600 dark:text-emerald-400 font-bold">
                 {loadingBar} {Math.min(scanProgress, 100)}%
               </span>
             </div>
           </div>
 
           {/* Mission Console Terminal Card */}
-          <div className="border border-slate-900 bg-[#0B1020] rounded-2xl p-4 flex flex-col justify-between h-[360px] shadow-lg">
-            <div className="flex items-center justify-between border-b border-slate-950 pb-2 mb-2 font-mono">
+          <div className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B1020] rounded-2xl p-4 flex flex-col justify-between h-[360px] shadow-sm dark:shadow-lg transition-colors duration-200">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800/80 pb-2 mb-2 font-mono">
               <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">
                 Mission Console Terminal
               </span>
-              <TerminalIcon size={14} className="text-accent-blue animate-pulse" />
+              <TerminalIcon size={14} className="text-sky-600 dark:text-sky-400 animate-pulse" />
             </div>
 
             {/* Logs Window */}
             <div 
               ref={scrollContainerRef}
-              className="flex-1 overflow-y-auto font-mono text-[9.5px] text-slate-400 space-y-1.5 pr-1 scrollbar-thin"
+              className="flex-1 overflow-y-auto font-mono text-[9.5px] text-slate-600 dark:text-slate-400 space-y-1.5 pr-1 scrollbar-thin"
             >
               {logs.length === 0 ? (
-                <div className="text-slate-600 animate-pulse">[ AWAITING SENSOR TELEMETRY STREAM... ]</div>
+                <div className="text-slate-400 dark:text-slate-600 animate-pulse">[ AWAITING SENSOR TELEMETRY STREAM... ]</div>
               ) : (
                 logs.map((log, index) => (
                   <div key={index} className="leading-relaxed">
-                    <span className="text-slate-500 font-semibold">{log.substring(0, 10)}</span>
-                    <span className={log.includes("Classification") || log.includes("Score") || log.includes("FRESH") ? "text-accent-green font-semibold" : ""}>
+                    <span className="text-slate-400 dark:text-slate-500 font-semibold">{log.substring(0, 10)}</span>
+                    <span className={log.includes("Classification") || log.includes("Score") || log.includes("FRESH") ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-slate-700 dark:text-slate-300"}>
                       {log.substring(10)}
                     </span>
                   </div>
@@ -155,7 +154,7 @@ export default function LandingPage() {
               )}
             </div>
 
-            <div className="border-t border-slate-950/60 pt-2 mt-2 font-mono text-[8px] text-slate-600 flex justify-between">
+            <div className="border-t border-slate-200 dark:border-slate-800/80 pt-2 mt-2 font-mono text-[8px] text-slate-400 dark:text-slate-600 flex justify-between font-semibold">
               <span>SYS_T_STAMP: LIVE</span>
               <span>BUFFER_CAP: 15_LINES</span>
             </div>
