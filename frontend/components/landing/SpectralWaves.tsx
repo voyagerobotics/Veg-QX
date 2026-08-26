@@ -53,7 +53,7 @@ export default function SpectralWaves() {
       ctx.clearRect(0, 0, width, height);
 
       // ─── 1. Background Grid & Axis Lines ─────────────────────────────────
-      ctx.strokeStyle = "rgba(0, 255, 180, 0.05)";
+      ctx.strokeStyle = "rgba(0, 255, 180, 0.07)";
       ctx.lineWidth = 1;
 
       const gridSpacingX = width / 14;
@@ -76,7 +76,7 @@ export default function SpectralWaves() {
       ctx.setLineDash([]); // Reset line dash
 
       // Baseline center axis
-      ctx.strokeStyle = "rgba(0, 229, 255, 0.15)";
+      ctx.strokeStyle = "rgba(0, 229, 255, 0.2)";
       ctx.beginPath();
       ctx.moveTo(0, height * 0.5);
       ctx.lineTo(width, height * 0.5);
@@ -150,23 +150,23 @@ export default function SpectralWaves() {
   return (
     <div
       ref={containerRef}
-      className="bg-[#070B12] border border-[rgba(0,255,180,0.15)] rounded-2xl p-5 shadow-[0_0_30px_rgba(0,255,136,0.05)] relative overflow-hidden flex flex-col justify-between select-none font-mono min-h-[265px]"
+      className="bg-white dark:bg-[#070B12] border border-slate-200 dark:border-[rgba(0,255,180,0.15)] rounded-2xl p-5 shadow-sm dark:shadow-[0_0_30px_rgba(0,255,136,0.05)] relative overflow-hidden flex flex-col justify-between select-none font-mono min-h-[265px] transition-colors duration-200"
     >
       {/* Header Bar */}
-      <div className="flex items-center justify-between border-b border-[rgba(0,255,180,0.12)] pb-3 mb-2 z-10">
+      <div className="flex items-center justify-between border-b border-slate-200 dark:border-[rgba(0,255,180,0.12)] pb-3 mb-2 z-10">
         <div>
-          <h3 className="text-xs font-bold text-[#00FF88] uppercase tracking-[0.15em] flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#00E5FF] animate-pulse" />
+          <h3 className="text-xs font-bold text-emerald-700 dark:text-[#00FF88] uppercase tracking-[0.15em] flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-500 dark:bg-[#00E5FF] animate-pulse" />
             SPECTRAL REFLECTANCE TELEMETRY: SPECTRALWAVES
           </h3>
         </div>
-        <span className="text-[9px] text-[#00E5FF] tracking-[0.12em] uppercase font-semibold opacity-90">
+        <span className="text-[9px] text-sky-700 dark:text-[#00E5FF] tracking-[0.12em] uppercase font-semibold">
           3D ORBITAL FLOW ANALYZER // 60 FPS LIVE
         </span>
       </div>
 
-      {/* Canvas Oscilloscope Display (Exact Original Dimensions Preserved) */}
-      <div className="relative w-full h-[150px] rounded-xl overflow-hidden bg-[#050810] border border-[rgba(0,255,180,0.12)] shadow-inner flex items-center justify-center">
+      {/* Canvas Oscilloscope Display */}
+      <div className="relative w-full h-[150px] rounded-xl overflow-hidden bg-slate-950 dark:bg-[#050810] border border-slate-300 dark:border-[rgba(0,255,180,0.12)] shadow-inner flex items-center justify-center">
         <canvas
           ref={canvasRef}
           width={800}
@@ -176,13 +176,13 @@ export default function SpectralWaves() {
       </div>
 
       {/* Bottom Wavelength Labels Legend Row */}
-      <div className="grid grid-cols-6 gap-2 pt-3 border-t border-[rgba(0,255,180,0.12)] text-center z-10">
+      <div className="grid grid-cols-6 gap-2 pt-3 border-t border-slate-200 dark:border-[rgba(0,255,180,0.12)] text-center z-10">
         {spectralBands.map((band) => (
           <div key={band.name} className="flex flex-col items-center">
             <span className="text-[10px] font-bold tracking-widest" style={{ color: band.color }}>
               {band.name}
             </span>
-            <span className="text-[9px] text-slate-400 tracking-wider block font-mono mt-0.5 opacity-80">
+            <span className="text-[9px] text-slate-500 dark:text-slate-400 tracking-wider block font-mono mt-0.5">
               {band.wavelength}
             </span>
           </div>
