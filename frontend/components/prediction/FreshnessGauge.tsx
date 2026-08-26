@@ -1,21 +1,26 @@
 "use client";
 
+import { useTheme } from "@/components/theme/ThemeProvider";
+
 interface FreshnessGaugeProps {
   score: number;
 }
 
 export default function FreshnessGauge({ score }: FreshnessGaugeProps) {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+
   // SVG circular path params
   const radius = 60;
   const strokeWidth = 8;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (Math.min(100, Math.max(0, score)) / 100) * circumference;
 
-  let color = "#ff3b30"; // Red
+  let color = isDark ? "#ef4444" : "#dc2626"; // Red
   if (score >= 60) {
-    color = "#39ff14"; // Green
+    color = isDark ? "#10b981" : "#059669"; // Green
   } else if (score >= 40) {
-    color = "#ffaa00"; // Orange
+    color = isDark ? "#f59e0b" : "#d97706"; // Orange
   }
 
   return (
@@ -29,7 +34,7 @@ export default function FreshnessGauge({ score }: FreshnessGaugeProps) {
             cy="70"
             r={radius}
             fill="transparent"
-            stroke="rgba(255,255,255,0.04)"
+            stroke={isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.07)"}
             strokeWidth={strokeWidth}
           />
           {/* Active value circle path */}
@@ -52,10 +57,10 @@ export default function FreshnessGauge({ score }: FreshnessGaugeProps) {
 
         {/* Text score label overlays */}
         <div className="absolute flex flex-col items-center justify-center text-center">
-          <span className="text-3xl font-extrabold text-white font-mono tracking-tight">
+          <span className="text-3xl font-extrabold text-slate-900 dark:text-white font-mono tracking-tight">
             {score.toFixed(1)}
           </span>
-          <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500">
+          <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 dark:text-slate-400 font-semibold">
             Freshness Score
           </span>
         </div>
