@@ -502,17 +502,48 @@ def archive_verified_predictions(retraining_run_id: int) -> None:
 
 def generate_verified_dataset_csv() -> str:
     """
-    Dynamically generates the retraining CSV content directly from SQLite verified_predictions.
-    Preserves exact column header and order expected by reference dataset.
+    Dynamically generates the verified dataset CSV content directly from SQLite verified_predictions.
+    Includes clean verified timestamps, scan timestamps, spectral bands, indices, predictions,
+    and ground-truth verification labels formatted for Excel and Google Sheets.
     """
     active_records = get_verified_predictions_active()
     output = io.StringIO()
     headers = [
-        "Tomato_ID", "Tomato_position", "Blue", "Green", "Yellow", "Orange",
-        "Red", "NIR", "NDVI", "GNDVI", "RVI", "Freshness_", "Category"
+        "Verification_ID",
+        "Prediction_ID",
+        "Verified_Timestamp",
+        "Scan_Timestamp",
+        "Tomato_ID",
+        "Position",
+        "Input_Source",
+        "Blue",
+        "Green",
+        "Yellow",
+        "Orange",
+        "Red",
+        "NIR",
+        "NDVI",
+        "GNDVI",
+        "RVI",
+        "Predicted_Category",
+        "Predicted_Freshness_Score",
+        "Confidence_Fresh_Pct",
+        "Confidence_Aging_Pct",
+        "Confidence_Spoiling_Pct",
+        "Verified_Category",
+        "Verified_Freshness_Score",
+        "Verified_By",
+        "Verification_Notes",
+        "Model_Version",
+        "Status",
     ]
     writer = csv.DictWriter(output, fieldnames=headers)
     writer.writeheader()
+
+    def _format_clean_ts(ts_str: Optional[str]) -> str:
+        if not ts_str:
+            return ""
+        return ts_str.replace("T", " ").split(".")[0]
 
     for r in active_records:
         blue = r.get("blue") if r.get("blue") is not None else r.get("Blue", 50.0)
@@ -534,23 +565,41 @@ def generate_verified_dataset_csv() -> str:
         if rvi is None:
             rvi = float(nir / (red + 1e-8))
 
-        freshness = r.get("actual_freshness_score") if r.get("actual_freshness_score") is not None else (r.get("freshness_score") or 85.0)
-        category = r.get("actual_category") or r.get("predicted_category") or "Fresh"
+        pred_score = r.get("freshness_score")
+        verified_score = r.get("actual_freshness_score") if r.get("actual_freshness_score") is not None else pred_score
+
+        c_fresh = r.get("confidence_fresh")
+        c_aging = r.get("confidence_aging")
+        c_spoil = r.get("confidence_spoiling")
 
         writer.writerow({
-            "Tomato_ID":       r.get("tomato_id") or 1001,
-            "Tomato_position": r.get("position") or 1,
-            "Blue":            round(float(blue), 4),
-            "Green":           round(float(green), 4),
-            "Yellow":          round(float(yellow), 4),
-            "Orange":          round(float(orange), 4),
-            "Red":             round(float(red), 4),
-            "NIR":             round(float(nir), 4),
-            "NDVI":            round(float(ndvi), 4),
-            "GNDVI":           round(float(gndvi), 4),
-            "RVI":             round(float(rvi), 4),
-            "Freshness_":      round(float(freshness), 2),
-            "Category":        category,
+            "Verification_ID": f"v_{r.get('id')}",
+            "Prediction_ID": r.get("prediction_id") or "",
+            "Verified_Timestamp": _format_clean_ts(r.get("verified_at")),
+            "Scan_Timestamp": _format_clean_ts(r.get("timestamp")),
+            "Tomato_ID": r.get("tomato_id") or 1001,
+            "Position": r.get("position") or 1,
+            "Input_Source": (r.get("input_source") or "usb").upper(),
+            "Blue": round(float(blue), 4),
+            "Green": round(float(green), 4),
+            "Yellow": round(float(yellow), 4),
+            "Orange": round(float(orange), 4),
+            "Red": round(float(red), 4),
+            "NIR": round(float(nir), 4),
+            "NDVI": round(float(ndvi), 6),
+            "GNDVI": round(float(gndvi), 6),
+            "RVI": round(float(rvi), 6),
+            "Predicted_Category": r.get("predicted_category") or "",
+            "Predicted_Freshness_Score": round(float(pred_score), 4) if pred_score is not None else "",
+            "Confidence_Fresh_Pct": round(float(c_fresh) * 100, 2) if c_fresh is not None else "",
+            "Confidence_Aging_Pct": round(float(c_aging) * 100, 2) if c_aging is not None else "",
+            "Confidence_Spoiling_Pct": round(float(c_spoil) * 100, 2) if c_spoil is not None else "",
+            "Verified_Category": r.get("actual_category") or r.get("predicted_category") or "Fresh",
+            "Verified_Freshness_Score": float(verified_score) if verified_score is not None else 85.0,
+            "Verified_By": r.get("verified_by") or "user",
+            "Verification_Notes": r.get("notes") or "",
+            "Model_Version": r.get("model_version") or "v1.1",
+            "Status": r.get("status") or "ACTIVE",
         })
     return output.getvalue()
 
