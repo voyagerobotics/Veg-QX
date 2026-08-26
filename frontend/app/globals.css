@@ -4,13 +4,72 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+:root,
+[data-theme="light"],
+html.light {
   --font-sans: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'IBM Plex Mono', 'JetBrains Mono', 'Courier New', monospace;
+
+  /* Light Theme Color System (Default) */
+  --bg-primary: #F8FAFC;
+  --bg-surface: #F1F5F9;
+  --bg-card: #FFFFFF;
+  --bg-card-glass: rgba(255, 255, 255, 0.85);
+  --bg-hover: #F1F5F9;
+  --bg-active: #E2E8F0;
+
+  --text-primary: #0F172A;
+  --text-secondary: #334155;
+  --text-muted: #64748B;
+  --text-subtle: #94A3B8;
+
+  --border-default: #E2E8F0;
+  --border-subtle: #F1F5F9;
+  --border-strong: #CBD5E1;
+  --border-panel: rgba(226, 232, 240, 0.9);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 12px 24px -4px rgba(0, 0, 0, 0.08), 0 4px 8px -2px rgba(0, 0, 0, 0.04);
+
+  color-scheme: light;
+}
+
+[data-theme="dark"],
+html.dark {
+  --font-sans: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'JetBrains Mono', 'Courier New', monospace;
+
+  /* Dark Theme Color System */
+  --bg-primary: #050814;
+  --bg-surface: #070B16;
+  --bg-card: #0B1020;
+  --bg-card-glass: rgba(11, 16, 32, 0.75);
+  --bg-hover: rgba(255, 255, 255, 0.05);
+  --bg-active: rgba(255, 255, 255, 0.08);
+
+  --text-primary: #F8FAFC;
+  --text-secondary: #CBD5E1;
+  --text-muted: #94A3B8;
+  --text-subtle: #64748B;
+
+  --border-default: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  --border-panel: rgba(255, 255, 255, 0.06);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.5);
+
+  color-scheme: dark;
 }
 
 html {
   font-size: 18px;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 200ms ease, color 200ms ease;
 }
 
 @media (max-width: 768px) {
@@ -21,6 +80,9 @@ html {
 
 body {
   font-family: var(--font-sans);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
 }
 
 pre,
@@ -28,21 +90,23 @@ code {
   font-family: var(--font-mono);
 }
 
-/* Glassmorphism custom panel */
+/* Glassmorphism universal panel */
 .glass-panel {
-  background: rgba(17, 24, 39, 0.45);
+  background: var(--bg-card-glass);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-panel);
+  box-shadow: var(--shadow-md);
+  transition: background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
 }
 
 /* Outer neon glow elements */
 .green-glow {
-  box-shadow: 0 0 20px rgba(57, 255, 20, 0.15);
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
 }
 
 .blue-glow {
-  box-shadow: 0 0 20px rgba(0, 210, 255, 0.15);
+  box-shadow: 0 0 20px rgba(2, 132, 199, 0.2);
 }
 
 /* Custom scrollbars */
@@ -52,14 +116,14 @@ code {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(17, 24, 39, 0.2);
+  background: var(--bg-surface);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--border-strong);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--text-muted);
 }
