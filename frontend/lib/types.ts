@@ -59,6 +59,13 @@ export interface USBStatus {
   usb_connected: boolean;
   usb_port: string | null;
   sensor_ready: boolean;
+  esp32_detected?: boolean;
+  available_ports?: Array<{
+    port: string;
+    description: string;
+    hwid: string;
+    is_esp32: boolean;
+  }>;
 }
 
 export interface COMStatus {
@@ -73,6 +80,10 @@ export interface COMStatus {
     is_esp32: boolean;
   }>;
   esp32_detected: boolean;
+  is_streaming?: boolean;
+  packets_received?: number;
+  last_packet_time?: number | null;
+  latest_reading?: any;
 }
 
 export interface RetrainingLog {
