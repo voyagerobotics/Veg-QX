@@ -33,6 +33,11 @@ export const api = {
   },
 
   // USB / Sensor controls
+  getSensorPorts: async (): Promise<{ success: boolean; data: COMStatus }> => {
+    const res = await client.get("/sensor_ports");
+    return res.data;
+  },
+
   connectUSB: async (port?: string): Promise<{ success: boolean; data: any; error?: string }> => {
     const res = await client.post(`/connect_usb${port ? `?port=${port}` : ""}`);
     return res.data;
