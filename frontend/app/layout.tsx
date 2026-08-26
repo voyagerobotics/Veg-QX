@@ -1,5 +1,6 @@
 import "@/app/globals.css";
 import SidebarAndMainWrapper from "@/components/layout/SidebarAndMainWrapper";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
 
 export const metadata = {
   title: "VEG QX — Voyage Robotics",
@@ -17,12 +18,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="light" data-theme="light" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/voyage_robotics_logo.png" type="image/png" />
       </head>
-      <body className="bg-background text-slate-100 flex min-h-screen antialiased" suppressHydrationWarning>
-        <SidebarAndMainWrapper>{children}</SidebarAndMainWrapper>
+      <body className="bg-[var(--bg-primary)] text-[var(--text-primary)] flex min-h-screen antialiased transition-colors duration-200" suppressHydrationWarning>
+        <ThemeProvider>
+          <SidebarAndMainWrapper>{children}</SidebarAndMainWrapper>
+        </ThemeProvider>
       </body>
     </html>
   );
