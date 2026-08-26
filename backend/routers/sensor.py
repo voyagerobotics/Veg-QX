@@ -13,6 +13,15 @@ from services.database_service import save_prediction
 router = APIRouter(tags=["Sensor"])
 
 
+@router.get("/sensor_ports")
+def get_sensor_ports(sensor_svc: SensorService = Depends(get_sensor_service)):
+    """Returns real-time scan of all COM ports, detected ESP32, and connection state."""
+    return {
+        "success": True,
+        "data": sensor_svc.get_status(),
+    }
+
+
 @router.post("/connect_usb")
 def connect_sensor(
     port: str = Query(None, description="COM Port device name, e.g. 'COM8'"),
@@ -47,38 +56,68 @@ async def live_sensor_websocket(
     await websocket.accept()
     print("[WebSocket] Client connected for live sensor data.")
 
-    # Setup callback queue to bridge background thread and async websocket
+    # Capture the running event loop in the async context so thread-safe callbacks can schedule items
+    loop = asyncio.get_running_loop()
     queue = asyncio.Queue()
     inference_svc = get_inference_service("tomato")
 
     def thread_safe_callback(data: dict):
-        # Schedule queue insert in the running async event loop
-        loop = asyncio.get_running_loop()
+        # Schedule queue insert in the running async event loop from background thread
         loop.call_soon_threadsafe(queue.put_nowait, data)
 
     # Register callback on the sensor service
     sensor_svc.register_callback(thread_safe_callback)
 
     try:
+        # If there is already a recent valid reading, send it to the client immediately upon connection
+        latest = sensor_svc.get_latest_reading()
+        if latest:
+            try:
+                raw_bands = {
+                    "Blue": float(latest.get("Blue", 0)),
+                    "Green": float(latest.get("Green", 0)),
+                    "Yellow": float(latest.get("Yellow", 0)),
+                    "Orange": float(latest.get("Orange", 0)),
+                    "Red": float(latest.get("Red", 0)),
+                    "NIR": float(latest.get("NIR", 0)),
+                }
+                pred = inference_svc.predict_single(raw_bands)
+                initial_payload = {**latest, **raw_bands, **pred}
+                print(f"[FRONTEND TELEMETRY EMIT (INITIAL)]\n{initial_payload}")
+                await websocket.send_json({
+                    "status": "reading",
+                    "data": initial_payload,
+                })
+            except Exception as initial_err:
+                print(f"[WebSocket] Initial payload error: {initial_err}")
+
         while True:
             # Wait for new reading in queue
             reading = await queue.get()
 
+            raw_bands = {
+                "Blue": float(reading.get("Blue", 0)),
+                "Green": float(reading.get("Green", 0)),
+                "Yellow": float(reading.get("Yellow", 0)),
+                "Orange": float(reading.get("Orange", 0)),
+                "Red": float(reading.get("Red", 0)),
+                "NIR": float(reading.get("NIR", 0)),
+            }
+
+            print(f"\n[TELEMETRY NORMALIZED]\n{raw_bands}")
+
             # Server-side inference & DB logging to minimize client-side HTTP overhead
-            full_payload = {**reading}
+            full_payload = {**reading, **raw_bands}
             try:
-                raw_bands = {
-                    "Blue": reading["Blue"],
-                    "Green": reading["Green"],
-                    "Yellow": reading["Yellow"],
-                    "Orange": reading["Orange"],
-                    "Red": reading["Red"],
-                    "NIR": reading["NIR"],
-                }
                 pred = inference_svc.predict_single(raw_bands)
                 
+                print(f"[VEGETATION INDICES]\nNDVI: {pred['NDVI']:.6f} | GNDVI: {pred['GNDVI']:.6f} | RVI: {pred['RVI']:.6f}")
+                print(f"[ML INPUT]\n{raw_bands} + Indices")
+                print(f"[REGRESSION OUTPUT]\nFreshness Score: {pred['freshness_score']}")
+                print(f"[CLASSIFICATION OUTPUT]\nCategory: {pred['category']} (Fresh: {pred['confidence_fresh']*100:.1f}%, Aging: {pred['confidence_aging']*100:.1f}%, Spoiling: {pred['confidence_spoiling']*100:.1f}%)")
+
                 # Combine reading and prediction
-                full_payload = {**reading, **pred}
+                full_payload = {**reading, **raw_bands, **pred}
 
                 # Save record to SQLite + CSV dual-storage
                 save_prediction({
@@ -92,6 +131,7 @@ async def live_sensor_websocket(
                 print(f"[WebSocket] Server-side prediction/DB log error: {pe}")
 
             # Broadcast combined data to the client
+            print(f"[FRONTEND TELEMETRY EMIT]\n{full_payload}")
             await websocket.send_json({
                 "status": "reading",
                 "data": full_payload,

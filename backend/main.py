@@ -49,7 +49,7 @@ def ensure_logo_copied():
                 target_static = static_dir / "voyage_robotics_logo.png"
                 if Path(src).resolve() != target_static.resolve():
                     shutil.copy(src, target_static)
-                print(f"  ✔ Logo copied from {src} to frontend/public and backend/static.")
+                print(f"  [OK] Logo copied from {src} to frontend/public and backend/static.")
                 break
             except Exception as e:
                 print(f"  Note copying logo: {e}")
@@ -63,7 +63,7 @@ def ensure_logo_copied():
                 public_dir = BASE_DIR.parent / "frontend" / "public"
                 public_dir.mkdir(parents=True, exist_ok=True)
                 shutil.copy(src, public_dir / "hologram_tomato.png")
-                print(f"  ✔ Hologram tomato copied to {public_dir / 'hologram_tomato.png'}")
+                print(f"  [OK] Hologram tomato copied to {public_dir / 'hologram_tomato.png'}")
                 break
             except Exception as e:
                 print(f"  Note copying tomato: {e}")
@@ -72,7 +72,7 @@ ensure_logo_copied()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("🚀 VEG QX — Voyage Robotics API starting up...")
+    print(">>> VEG QX — Voyage Robotics API starting up...")
     ensure_logo_copied()
 
     # 1. Initialize DB and directories
@@ -84,13 +84,13 @@ async def lifespan(app: FastAPI):
     try:
         svc = get_inference_service("tomato")
         if svc.is_loaded():
-            print(f"  ✔ Model version {svc.model_version} loaded successfully.")
+            print(f"  [OK] Model version {svc.model_version} loaded successfully.")
         else:
-            print("  ❌ Failed to load active ML model.")
+            print("  [ERROR] Failed to load active ML model.")
     except Exception as e:
-        print(f"  ❌ Error loading ML model: {e}")
+        print(f"  [ERROR] Error loading ML model: {e}")
 
-    print("🚀 Startup complete. API is ready.")
+    print(">>> Startup complete. API is ready.")
     yield
 
 
