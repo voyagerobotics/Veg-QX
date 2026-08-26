@@ -8,7 +8,7 @@ export default function SidebarAndMainWrapper({ children }: { children: React.Re
   const [isOpen, setIsOpen] = useState(true);
 
   return (
-    <div className="flex min-h-screen w-full relative overflow-x-hidden">
+    <div className="flex min-h-screen w-full relative overflow-x-hidden bg-[var(--bg-primary)] transition-colors duration-200">
       {/* Sidebar Container — 100% Fixed & Viewport-Pinned */}
       <div 
         className={`transition-all duration-300 ease-in-out z-40 fixed top-0 left-0 h-screen ${
