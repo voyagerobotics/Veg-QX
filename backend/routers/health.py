@@ -32,6 +32,8 @@ def health_check(
 
     # USB status
     sensor_status = sensor_svc.get_status()
+    available_ports = sensor_status.get("available_ports", [])
+    detected_port = sensor_svc.find_esp32_port()
 
     # Overall health status
     overall = "healthy" if (db_ok and model_ok) else "degraded"
@@ -42,6 +44,8 @@ def health_check(
         "model_loaded": model_ok,
         "model_version": inference_svc.model_version if model_ok else None,
         "usb_connected": sensor_status["is_connected"],
-        "usb_port": sensor_status["port"],
-        "sensor_ready": sensor_status["is_connected"] and sensor_status["esp32_detected"],
+        "usb_port": sensor_status["port"] or detected_port,
+        "available_ports": available_ports,
+        "esp32_detected": sensor_status["esp32_detected"] or len(available_ports) > 0,
+        "sensor_ready": sensor_status["is_connected"],
     }
