@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: ["class"],
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -7,22 +8,27 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        background: "#050814", // Deep Space Navy
-        card: "#0B1020", // Telemetry Panel Blue
+        background: "var(--bg-primary)",
+        card: "var(--bg-card)",
+        surface: "var(--bg-surface)",
         accent: {
-          green: "#2DFF6A", // Mission Green
-          yellow: "#FFB800", // Calibration Warning
-          red: "#FF5252", // Alarm / Offline Red
-          blue: "#00E5FF", // Telemetry Cyan
+          green: "#10B981", // Mission Green
+          emerald: "#059669",
+          yellow: "#F59E0B", // Calibration Warning
+          amber: "#D97706",
+          red: "#EF4444", // Alarm / Offline Red
+          rose: "#DC2626",
+          blue: "#0284C7", // Telemetry Cyan/Blue
+          cyan: "#00E5FF",
         },
         scientific: {
-          green: "rgba(45, 255, 106, 0.15)",
-          blue: "rgba(0, 229, 255, 0.1)",
+          green: "rgba(16, 185, 129, 0.12)",
+          blue: "rgba(2, 132, 199, 0.1)",
         }
       },
       fontFamily: {
         sans: ["var(--font-sans)", "Inter", "sans-serif"],
-        mono: ["Courier New", "monospace"],
+        mono: ["var(--font-mono)", "Courier New", "monospace"],
       },
       backdropBlur: {
         xs: "2px",
