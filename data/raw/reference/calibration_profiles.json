@@ -1,0 +1,266 @@
+{
+  "beetroot": {
+    "commodity": "beetroot",
+    "real_sample_count": 32,
+    "specimen_count": 21,
+    "sensor_noise": {
+      "sigma_red_sensor": 0.4,
+      "sigma_nir_sensor": 0.8366600265340756,
+      "sigma_ndvi_sensor": 0.001
+    },
+    "real_distributions": {
+      "red_mean": 35.69375,
+      "red_std": 11.482045942786419,
+      "red_min": 7.0,
+      "red_max": 57.8,
+      "nir_mean": 394.47499999999997,
+      "nir_std": 93.94996266029575,
+      "nir_min": 303.0,
+      "nir_max": 608.4,
+      "ndvi_mean": 0.8256125000000001,
+      "ndvi_std": 0.0693794184875992,
+      "ndvi_min": 0.6899,
+      "ndvi_max": 0.9638
+    },
+    "sensor_distance_mm": 50,
+    "ambient_tested": [
+      "In dark black box"
+    ],
+    "real_holdout_specimens": [
+      "Beetroot_001",
+      "Beetroots_MR08",
+      "Beetroots_MR06",
+      "Beetroot_002"
+    ],
+    "real_holdout_count": 6
+  },
+  "bitter_gourd": {
+    "commodity": "bitter_gourd",
+    "real_sample_count": 7,
+    "specimen_count": 7,
+    "sensor_noise": {
+      "sigma_red_sensor": 0.4472135954999579,
+      "sigma_nir_sensor": 0.8944271909999159,
+      "sigma_ndvi_sensor": 0.002371286570619405
+    },
+    "real_distributions": {
+      "red_mean": 8.6,
+      "red_std": 3.4698703145794947,
+      "red_min": 5.8,
+      "red_max": 15.8,
+      "nir_mean": 432.1142857142857,
+      "nir_std": 151.12876880959746,
+      "nir_min": 238.6,
+      "nir_max": 715.4,
+      "ndvi_mean": 0.9600285714285715,
+      "ndvi_std": 0.010348705923240546,
+      "ndvi_min": 0.9475,
+      "ndvi_max": 0.9732
+    },
+    "sensor_distance_mm": 50,
+    "ambient_tested": [
+      "In dark black box"
+    ],
+    "real_holdout_specimens": [
+      "Bitter gourd_001"
+    ],
+    "real_holdout_count": 1
+  },
+  "brinjal": {
+    "commodity": "brinjal",
+    "real_sample_count": 38,
+    "specimen_count": 38,
+    "sensor_noise": {
+      "sigma_red_sensor": 0.4,
+      "sigma_nir_sensor": 1.0954451150103321,
+      "sigma_ndvi_sensor": 0.0016135870885465838
+    },
+    "real_distributions": {
+      "red_mean": 17.147368421052633,
+      "red_std": 6.597900437633306,
+      "red_min": 8.8,
+      "red_max": 38.0,
+      "nir_mean": 496.2105263157896,
+      "nir_std": 68.34162116528469,
+      "nir_min": 398.2,
+      "nir_max": 627.4,
+      "ndvi_mean": 0.9311684210526314,
+      "ndvi_std": 0.030405663637278646,
+      "ndvi_min": 0.8401,
+      "ndvi_max": 0.9658
+    },
+    "sensor_distance_mm": 50,
+    "ambient_tested": [],
+    "real_holdout_specimens": [
+      "Bringal_MR15",
+      "Bringal_MR18",
+      "Brinjal_MR05",
+      "Brinjal_MR14",
+      "Bringal_MR12",
+      "Bringal_MR08",
+      "Brinjal_MR07"
+    ],
+    "real_holdout_count": 7
+  },
+  "carrot": {
+    "commodity": "carrot",
+    "real_sample_count": 15,
+    "specimen_count": 15,
+    "sensor_noise": {
+      "sigma_red_sensor": 0.4472135954999579,
+      "sigma_nir_sensor": 0.8366600265340756,
+      "sigma_ndvi_sensor": 0.0026204961362307037
+    },
+    "real_distributions": {
+      "red_mean": 25.506666666666668,
+      "red_std": 19.659075209562584,
+      "red_min": 8.8,
+      "red_max": 67.4,
+      "nir_mean": 331.3066666666667,
+      "nir_std": 54.518666091357666,
+      "nir_min": 239.8,
+      "nir_max": 431.4,
+      "ndvi_mean": 0.8635800000000001,
+      "ndvi_std": 0.09393022638411679,
+      "ndvi_min": 0.666,
+      "ndvi_max": 0.94
+    },
+    "sensor_distance_mm": 50,
+    "ambient_tested": [],
+    "real_holdout_specimens": [
+      "Carrot_010",
+      "Carrot_012",
+      "Carrot_001"
+    ],
+    "real_holdout_count": 3
+  },
+  "green_brinjal": {
+    "commodity": "green_brinjal",
+    "real_sample_count": 20,
+    "specimen_count": 10,
+    "sensor_noise": {
+      "sigma_red_sensor": 0.4,
+      "sigma_nir_sensor": 1.1824601482453634,
+      "sigma_ndvi_sensor": 0.0011552428402657818
+    },
+    "real_distributions": {
+      "red_mean": 24.759999999999998,
+      "red_std": 8.769468566986736,
+      "red_min": 11.4,
+      "red_max": 45.0,
+      "nir_mean": 685.22,
+      "nir_std": 104.48135366254543,
+      "nir_min": 489.8,
+      "nir_max": 831.2,
+      "ndvi_mean": 0.92838,
+      "ndvi_std": 0.02978177825096201,
+      "ndvi_min": 0.8492,
+      "ndvi_max": 0.9616
+    },
+    "sensor_distance_mm": 50,
+    "ambient_tested": [
+      "In dark black box"
+    ],
+    "real_holdout_specimens": [
+      "Brinjal_009",
+      "Brinjal_002"
+    ],
+    "real_holdout_count": 4
+  },
+  "green_chilli": {
+    "commodity": "green_chilli",
+    "real_sample_count": 1,
+    "specimen_count": 1,
+    "sensor_noise": {
+      "sigma_red_sensor": 0.5477225575051661,
+      "sigma_nir_sensor": 0.8,
+      "sigma_ndvi_sensor": 0.001369306393762947
+    },
+    "real_distributions": {
+      "red_mean": 24.4,
+      "red_std": 3.0,
+      "red_min": 24.4,
+      "red_max": 24.4,
+      "nir_mean": 729.4,
+      "nir_std": 30.0,
+      "nir_min": 729.4,
+      "nir_max": 729.4,
+      "ndvi_mean": 0.9353,
+      "ndvi_std": 0.02,
+      "ndvi_min": 0.9353,
+      "ndvi_max": 0.9353
+    },
+    "sensor_distance_mm": 50,
+    "ambient_tested": [
+      "In dark black box"
+    ],
+    "real_holdout_specimens": [],
+    "real_holdout_count": 0
+  },
+  "peas": {
+    "commodity": "peas",
+    "real_sample_count": 1,
+    "specimen_count": 1,
+    "sensor_noise": {
+      "sigma_red_sensor": 0.5477225575051661,
+      "sigma_nir_sensor": 0.8366600265340756,
+      "sigma_ndvi_sensor": 0.0019005262429127696
+    },
+    "real_distributions": {
+      "red_mean": 17.6,
+      "red_std": 3.0,
+      "red_min": 17.6,
+      "red_max": 17.6,
+      "nir_mean": 533.2,
+      "nir_std": 30.0,
+      "nir_min": 533.2,
+      "nir_max": 533.2,
+      "ndvi_mean": 0.9361,
+      "ndvi_std": 0.02,
+      "ndvi_min": 0.9361,
+      "ndvi_max": 0.9361
+    },
+    "sensor_distance_mm": 50,
+    "ambient_tested": [
+      "In dark black box"
+    ],
+    "real_holdout_specimens": [],
+    "real_holdout_count": 0
+  },
+  "tomato": {
+    "commodity": "tomato",
+    "real_sample_count": 40,
+    "specimen_count": 25,
+    "sensor_noise": {
+      "sigma_red_sensor": 0.4472135954999579,
+      "sigma_nir_sensor": 0.8944271909999159,
+      "sigma_ndvi_sensor": 0.0019017344039712167
+    },
+    "real_distributions": {
+      "red_mean": 47.825,
+      "red_std": 25.444446777143177,
+      "red_min": 15.0,
+      "red_max": 137.6,
+      "nir_mean": 346.09499999999997,
+      "nir_std": 50.950191615351414,
+      "nir_min": 273.8,
+      "nir_max": 481.0,
+      "ndvi_mean": 0.76265,
+      "ndvi_std": 0.09402216050839647,
+      "ndvi_min": 0.4971,
+      "ndvi_max": 0.9148
+    },
+    "sensor_distance_mm": 50,
+    "ambient_tested": [
+      "In dark black box"
+    ],
+    "real_holdout_specimens": [
+      "Tomato_009",
+      "Tomatos_MR07",
+      "Tomato_001",
+      "Tomatos_MR14",
+      "Tomatos_MR02"
+    ],
+    "real_holdout_count": 8
+  }
+}

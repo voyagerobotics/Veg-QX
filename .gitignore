@@ -47,13 +47,19 @@ models/*.h5
 models/*.pt
 models/*.onnx
 
-# Large datasets / CSV files
+# Large datasets / Parquet / CSV files
 *.csv
 !Tomato_Multispectral_Realistic_100k.csv
 !datasets/
 !datasets/*.csv
 !datasets/*.db
 
+# Large synthetic Parquet datasets (~1.13 GB; regenerable via ml/dataset_generation/)
+data/synthetic/
+*.parquet
+!data/validation/*.parquet
+
 # Retraining directory
 !retraining/
 !retraining/**
+
