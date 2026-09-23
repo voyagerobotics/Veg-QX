@@ -42,84 +42,89 @@ class InferenceService:
     def load_active_model(self) -> bool:
         """
         Loads the active model version designated in the SQLite model_versions table.
-        Returns True if loaded successfully.
+        Falls back to commodity subdirectory active model, candidate scanning, or config path.
         """
         active_version_info = None
         try:
             from services.database_service import get_active_model_version
-            active_version_info = get_active_model_version()
+            active_version_info = get_active_model_version(self.food_type)
         except Exception as db_err:
             print(f"[InferenceService] Note: Could not query active version from DB: {db_err}")
 
-        target_version = active_version_info.get("version") if active_version_info else None
+        # Priority 1: Exact pkl_path recorded in SQLite model_versions
+        if active_version_info and active_version_info.get("pkl_path"):
+            raw_path = Path(active_version_info["pkl_path"])
+            db_path = raw_path if raw_path.is_absolute() else (MODELS_DIR / raw_path.name)
+            if not db_path.exists() and (MODELS_DIR / self.food_type / raw_path.name).exists():
+                db_path = MODELS_DIR / self.food_type / raw_path.name
 
-        if target_version:
-            # Look for exact version file
-            path = MODELS_DIR / f"{self.food_type}_freshness_pipeline_{target_version}.pkl"
-            if not path.exists():
-                if target_version == "v1.0":
-                    path = MODELS_DIR / "tomato_freshness_pipeline_v1.pkl"
-                elif target_version == "v1.1":
-                    path = MODELS_DIR / "tomato_freshness_pipeline_v1.1.pkl"
-
-            if path.exists():
+            if db_path.exists():
                 try:
-                    payload = joblib.load(str(path))
-                    payload["_path"] = str(path)
+                    payload = joblib.load(str(db_path))
+                    payload["_path"] = str(db_path)
                     self._apply_payload(payload)
-                    self.model_version = target_version
-                    print(f"[InferenceService] Loaded SQLite ACTIVE model version '{self.model_version}' from {path.name}")
+                    self.model_version = active_version_info.get("version", self.model_version)
+                    print(f"[InferenceService] Loaded SQLite ACTIVE model for '{self.food_type}' ({self.model_version}) from {db_path.name}")
                     return True
                 except Exception as e:
-                    print(f"[InferenceService] Warning: Failed to load target active version '{target_version}': {e}")
+                    import traceback
+                    print(f"[InferenceService] Warning: Failed to load target active path '{db_path}': {e}")
+                    traceback.print_exc()
 
-        # Fallback 1: Scan models/ directory for candidate pkl files
-        pattern = str(MODELS_DIR / f"{self.food_type}_freshness_pipeline_v*.pkl")
-        candidates = sorted(glob.glob(pattern))
-
-        best_payload = None
-        best_accuracy = -1.0
-
-        for path in candidates:
+        # Priority 2: Commodity folder active model link
+        comm_active = MODELS_DIR / self.food_type / f"{self.food_type}_freshness_pipeline_active.pkl"
+        if comm_active.exists():
             try:
-                payload = joblib.load(path)
-                acc = payload.get("metadata", {}).get("classification_accuracy", -1)
-                if acc > best_accuracy:
-                    best_accuracy = acc
-                    best_payload = payload
-                    best_payload["_path"] = path
-            except Exception:
-                continue
+                payload = joblib.load(str(comm_active))
+                payload["_path"] = str(comm_active)
+                self._apply_payload(payload)
+                print(f"[InferenceService] Loaded active pipeline for '{self.food_type}' from {comm_active.name}")
+                return True
+            except Exception as e:
+                print(f"[InferenceService] Warning: Failed to load {comm_active}: {e}")
 
-        # Fallback 2: Configured active model path
-        if best_payload is None:
-            fallback = self.config.get("active_model_path")
-            if fallback and Path(fallback).exists():
+        # Priority 3: Configured active_model_path in COMMODITY_CONFIGS
+        fallback = self.config.get("active_model_path")
+        if fallback and Path(fallback).exists():
+            try:
+                payload = joblib.load(fallback)
+                payload["_path"] = fallback
+                self._apply_payload(payload)
+                print(f"[InferenceService] Loaded configured model for '{self.food_type}' from {Path(fallback).name}")
+                return True
+            except Exception as e:
+                print(f"[InferenceService] Warning: Failed to load configured active model '{fallback}': {e}")
+
+        # Priority 4: Legacy root models/ directory
+        for legacy_name in [f"{self.food_type}_freshness_pipeline_v1.1.pkl", f"{self.food_type}_freshness_pipeline_v1.pkl", f"{self.food_type}_freshness_pipeline_v1.0.pkl"]:
+            p = MODELS_DIR / legacy_name
+            if p.exists():
                 try:
-                    best_payload = joblib.load(fallback)
-                    best_payload["_path"] = fallback
-                except Exception as e:
-                    raise RuntimeError(f"Could not load any model for {self.food_type}: {e}")
-            else:
-                raise FileNotFoundError(
-                    f"No model files found for {self.food_type} in {MODELS_DIR}"
-                )
+                    payload = joblib.load(str(p))
+                    payload["_path"] = str(p)
+                    self._apply_payload(payload)
+                    print(f"[InferenceService] Loaded legacy model for '{self.food_type}' from {p.name}")
+                    return True
+                except Exception:
+                    continue
 
-        self._apply_payload(best_payload)
-        print(f"[InferenceService] Fallback: Loaded model '{self.model_version}' "
-              f"(acc={self.metadata.get('classification_accuracy', '?'):.4f}, "
-              f"R²={self.metadata.get('regression_r2', '?'):.4f})")
-        return True
+        return False
 
     def load_specific_version(self, version: str) -> bool:
-        """Load a specific version by name, e.g. 'v1.0'."""
-        path = MODELS_DIR / f"{self.food_type}_freshness_pipeline_{version}.pkl"
-        if not path.exists():
-            raise FileNotFoundError(f"Model file not found: {path}")
-        payload = joblib.load(str(path))
-        payload["_path"] = str(path)
-        self._apply_payload(payload)
-        return True
+        """Load a specific version by name, e.g. 'v1.0' or 'carrot_v1.0'."""
+        clean_v = version.replace(f"{self.food_type}_", "")
+        candidates = [
+            MODELS_DIR / self.food_type / f"{self.food_type}_freshness_pipeline_{clean_v}.pkl",
+            MODELS_DIR / f"{self.food_type}_freshness_pipeline_{clean_v}.pkl",
+            MODELS_DIR / f"{self.food_type}_freshness_pipeline_{version}.pkl",
+        ]
+        for path in candidates:
+            if path.exists():
+                payload = joblib.load(str(path))
+                payload["_path"] = str(path)
+                self._apply_payload(payload)
+                return True
+        raise FileNotFoundError(f"Model file not found for {self.food_type} version {version}")
 
     def _apply_payload(self, payload: dict):
         self.pipeline      = payload
@@ -146,11 +151,12 @@ class InferenceService:
 
         Returns
         -------
-        dict with: freshness_score, category, confidence_fresh,
-                   confidence_aging, confidence_spoiling, NDVI, GNDVI, RVI
+        dict with: commodity, freshness_score, category, confidence_pct,
+                   confidence_fresh, confidence_aging, confidence_spoiling,
+                   NDVI, GNDVI, RVI, is_ood, ood_reasons
         """
         if not self.is_loaded():
-            raise RuntimeError("Model not loaded. Call load_best_model() first.")
+            raise RuntimeError(f"Model not loaded for {self.food_type}. Call load_best_model() first.")
 
         # Compute vegetation indices
         indices = compute_all_indices(
@@ -177,10 +183,28 @@ class InferenceService:
         prob_dict      = dict(zip(classes, [round(float(p), 4) for p in class_probs]))
         confidence     = round(float(class_probs[class_idx]) * 100, 2)
 
+        # Out-of-Distribution (OOD) Envelope Check
+        is_ood = False
+        ood_reasons = []
+        if raw_bands.get("Red", 0) > 350 or raw_bands.get("Red", 0) < 1:
+            is_ood = True
+            ood_reasons.append("Red reflectance outside physical sensor envelope")
+        if raw_bands.get("NIR", 0) > 1000 or raw_bands.get("NIR", 0) < 5:
+            is_ood = True
+            ood_reasons.append("NIR reflectance outside physical sensor envelope")
+        if indices["NDVI"] < -0.8 or indices["NDVI"] > 1.0:
+            is_ood = True
+            ood_reasons.append("NDVI outside natural physiological envelope")
+
+        # If OOD, calibrate confidence score downward
+        calibrated_confidence = round(confidence * 0.5, 2) if is_ood else confidence
+
         return {
+            "commodity":            self.food_type,
+            "food_type":            self.food_type,
             "freshness_score":      freshness_score,
             "category":             category,
-            "confidence_pct":       confidence,
+            "confidence_pct":       calibrated_confidence,
             "confidence_fresh":     prob_dict.get("Fresh", 0.0),
             "confidence_aging":     prob_dict.get("Aging", 0.0),
             "confidence_spoiling":  prob_dict.get("Spoiling", 0.0),
@@ -188,6 +212,8 @@ class InferenceService:
             "GNDVI":                indices["GNDVI"],
             "RVI":                  indices["RVI"],
             "model_version":        self.model_version,
+            "is_ood":               is_ood,
+            "ood_reasons":          ood_reasons,
         }
 
     def predict_batch(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -238,8 +264,8 @@ _services: dict[str, InferenceService] = {}
 
 
 def get_inference_service(food_type: str = "tomato") -> InferenceService:
-    """Returns a cached InferenceService for the given food type."""
-    if food_type not in _services:
+    """Returns a cached InferenceService for the given food type, loading if needed."""
+    if food_type not in _services or not _services[food_type].is_loaded():
         svc = InferenceService(food_type)
         svc.load_best_model()
         _services[food_type] = svc
