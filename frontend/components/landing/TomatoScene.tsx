@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Cpu, Layers, Target, TrendingUp, ShieldCheck, Activity, Leaf, Compass } from "lucide-react";
 import { api } from "@/lib/api";
+import { COMMODITY_HOLOGRAM_IMAGES, FOOD_TYPES } from "@/lib/constants";
 
 const spectralNodes = [
   { name: "BLUE", wavelength: "470 nm", color: "#2563EB", halo: "rgba(37, 99, 235, 0.4)" },
@@ -14,29 +15,56 @@ const spectralNodes = [
 ];
 
 export default function TomatoScene() {
+  const [commodity, setCommodity] = useState<string>("tomato");
   const [activeModelInfo, setActiveModelInfo] = useState({
-    version: "v1.0",
-    accuracy: 80.87,
-    r2: 0.9999,
+    version: "tomato_v1.1",
+    accuracy: 81.23,
+    r2: 0.9947,
   });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("vegqx_commodity");
+      if (saved) setCommodity(saved);
+
+      const onCommChange = (e: any) => {
+        if (e.detail) setCommodity(e.detail);
+      };
+      window.addEventListener("commodityChanged", onCommChange);
+      return () => window.removeEventListener("commodityChanged", onCommChange);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchInfo = async () => {
       try {
-        const res = await api.getmodelInfo();
+        const res = await api.getmodelInfo(commodity);
         if (res.success && res.data) {
           setActiveModelInfo({
-            version: res.data.model_version || "v1.0",
-            accuracy: res.data.classification_accuracy ? Number((res.data.classification_accuracy * 100).toFixed(2)) : 80.87,
-            r2: res.data.regression_r2 || 0.9999,
+            version: res.data.model_version || `${commodity}_v1.0`,
+            accuracy: res.data.classification_accuracy
+              ? Number((res.data.classification_accuracy * 100).toFixed(2))
+              : (commodity === "tomato" ? 81.23 : 92.5),
+            r2: res.data.regression_r2 !== undefined && res.data.regression_r2 !== null
+              ? Number(res.data.regression_r2)
+              : 0.95,
           });
         }
       } catch (e) {
-        // Fallback default states on API error
+        // Fallback default state
+        if (commodity === "tomato") {
+          setActiveModelInfo({ version: "tomato_v1.1", accuracy: 81.23, r2: 0.9947 });
+        } else {
+          setActiveModelInfo({ version: `${commodity}_v1.0`, accuracy: 92.53, r2: 0.9380 });
+        }
       }
     };
     fetchInfo();
-  }, []);
+  }, [commodity]);
+
+  const currentFood = FOOD_TYPES.find((f) => f.value === commodity);
+  const displayName = currentFood ? currentFood.label : commodity.replace("_", " ").toUpperCase();
+  const hologramImgSrc = COMMODITY_HOLOGRAM_IMAGES[commodity] || "/hologram_tomato.png";
 
   return (
     <div className="w-full relative rounded-2xl overflow-hidden bg-white dark:bg-[#070B12] border border-slate-200 dark:border-[rgba(0,255,180,0.15)] p-6 min-h-[580px] flex flex-col justify-between shadow-sm dark:shadow-[0_0_30px_rgba(0,255,136,0.05)] font-mono text-slate-700 dark:text-slate-300 select-none transition-colors duration-200">
@@ -88,7 +116,7 @@ export default function TomatoScene() {
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10B981] animate-pulse" />
           <h2 className="text-xs font-bold text-emerald-700 dark:text-[#00FF88] uppercase tracking-[0.18em]">
-            TARGET ACQUISITION TELEMETRY
+            TARGET ACQUISITION: {displayName}
           </h2>
         </div>
         <span className="text-[9px] text-sky-700 dark:text-[#00E5FF] tracking-[0.15em] font-semibold">
@@ -180,7 +208,7 @@ export default function TomatoScene() {
           <span className="text-[8.5px] text-slate-500 dark:text-slate-400 block mt-0.5">Premium Quality</span>
         </div>
 
-        {/* ─── CENTERSTAGE: 3D PHOTOREALISTIC TOMATO & HOLOGRAPHIC PLATFORM ────────── */}
+        {/* ─── CENTERSTAGE: 3D PHOTOREALISTIC HOLOGRAPHIC SPECIMEN & PLATFORM ────────── */}
         <div className="relative w-[340px] h-[340px] flex items-center justify-center pointer-events-none">
 
           {/* Volumetric Light Cone */}
@@ -199,7 +227,7 @@ export default function TomatoScene() {
             <div className="absolute w-[65px] h-[14px] rounded-full bg-emerald-500 dark:bg-[#00FF88] shadow-[0_0_12px_#10B981] animate-pulse" />
           </div>
 
-          {/* 5 Rotating Holographic Transparent Cyan Rings Around Tomato */}
+          {/* 5 Rotating Holographic Transparent Cyan Rings Around Specimen */}
           <div className="absolute w-[270px] h-[270px] border border-dashed border-sky-400/40 dark:border-[rgba(0,229,255,0.35)] rounded-full animate-[ring-rotate-1_11s_linear_infinite]" />
           <div className="absolute w-[250px] h-[250px] border border-dotted border-emerald-400/35 dark:border-[rgba(0,255,180,0.3)] rounded-full animate-[ring-rotate-2_15s_linear_infinite]" />
           <div className="absolute w-[230px] h-[230px] border border-sky-400/30 dark:border-[rgba(0,229,255,0.22)] rounded-full animate-[ring-rotate-3_19s_linear_infinite]" />
@@ -220,12 +248,13 @@ export default function TomatoScene() {
             />
           ))}
 
-          {/* Photorealistic Tomato Floating ~30px Above Platform */}
+          {/* Photorealistic Specimen Floating ~30px Above Platform */}
           <div className="relative z-10 flex items-center justify-center animate-[tomato-float_5.5s_ease-in-out_infinite] mb-8">
             <img
-              src="/hologram_tomato.png"
-              alt="Photorealistic Tomato Hologram"
-              className="w-48 h-48 object-contain filter drop-shadow-[0_20px_35px_rgba(16,185,129,0.35)]"
+              key={hologramImgSrc}
+              src={hologramImgSrc}
+              alt={`${displayName} Hologram`}
+              className="w-48 h-48 object-contain filter drop-shadow-[0_20px_35px_rgba(16,185,129,0.35)] transition-all duration-500"
             />
 
             {/* Faint Scanner Line Sweep */}

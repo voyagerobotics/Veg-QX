@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
+import { FOOD_TYPES } from "@/lib/constants";
 
 const navItems = [
   { href: "/", label: "Control Center", icon: Satellite },
@@ -35,27 +36,68 @@ interface SidebarProps {
 export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const pathname = usePathname();
   const [activeFood, setActiveFood] = useState("tomato");
-  const [modelVersion, setModelVersion] = useState<string>("v1.0");
-  const [usbPort, setUsbPort] = useState<string>("AUTO");
+  const [activeModel, setActiveModel] = useState<string>("XGB_tomato_v1.1");
+  const [usbPort, setUsbPort] = useState<string>("COM20");
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("vegqx_commodity");
+      if (saved) setActiveFood(saved);
+
+      const onCommChange = (e: any) => {
+        if (e.detail) {
+          setActiveFood(e.detail);
+        }
+      };
+      window.addEventListener("commodityChanged", onCommChange);
+      return () => window.removeEventListener("commodityChanged", onCommChange);
+    }
+  }, []);
+
+  const handleFoodChange = (newFood: string) => {
+    setActiveFood(newFood);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("vegqx_commodity", newFood);
+      window.dispatchEvent(new CustomEvent("commodityChanged", { detail: newFood }));
+    }
+  };
+
+  useEffect(() => {
+    let isMounted = true;
     const fetchActiveVersion = async () => {
       try {
-        const health = await api.getHealth();
-        if (health.model_version) {
-          setModelVersion(health.model_version);
+        const health = await api.getHealth(activeFood);
+        if (!isMounted) return;
+        if (health.active_model) {
+          setActiveModel(health.active_model);
+        } else if (health.model_version) {
+          const mv = health.model_version;
+          if (mv.startsWith("XGB_") || mv.startsWith("LGBM_") || mv.startsWith("HGB_")) {
+            setActiveModel(mv);
+          } else if (mv.includes(activeFood)) {
+            setActiveModel(`XGB_${mv}`);
+          } else {
+            setActiveModel(`XGB_${activeFood}_${mv}`);
+          }
+        } else {
+          setActiveModel(`XGB_${activeFood}_v1.0`);
         }
         if (health.usb_port) {
           setUsbPort(health.usb_port);
         }
       } catch (e) {
-        // quiet fallback
+        if (isMounted) {
+          setActiveModel(`XGB_${activeFood}_v1.0`);
+        }
       }
     };
     fetchActiveVersion();
     const interval = setInterval(fetchActiveVersion, 3000);
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [activeFood]);
 
   return (
     <aside className="w-64 bg-white dark:bg-slate-950/80 border-r border-slate-200 dark:border-slate-850 backdrop-blur-xl flex flex-col h-full text-slate-700 dark:text-slate-300 shadow-sm transition-colors duration-200">
@@ -96,18 +138,19 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
       {/* Food Type Selector */}
       <div className="px-4 py-4 border-b border-slate-200 dark:border-slate-850/60">
         <label className="text-[10px] uppercase tracking-widest text-slate-500 font-mono block mb-2 font-semibold">
-          Active Food Matrix
+          Active Commodity Matrix
         </label>
         <select
           value={activeFood}
-          onChange={(e) => setActiveFood(e.target.value)}
+          onChange={(e) => handleFoodChange(e.target.value)}
           suppressHydrationWarning
-          className="w-full bg-slate-50 dark:bg-[#0B1020] border border-slate-300 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-emerald-500 font-mono shadow-xs"
+          className="w-full bg-slate-50 dark:bg-[#0B1020] border border-slate-300 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-emerald-500 font-mono shadow-xs cursor-pointer"
         >
-          <option value="tomato">Tomato (Active)</option>
-          <option value="banana" disabled>Banana (Offline)</option>
-          <option value="apple" disabled>Apple (Offline)</option>
-          <option value="milk" disabled>Milk (Offline)</option>
+          {FOOD_TYPES.map((food) => (
+            <option key={food.value} value={food.value} disabled={food.disabled}>
+              {food.icon} {food.label} {food.disabled ? "(Coming Soon)" : "(Active)"}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -140,10 +183,21 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
       </nav>
 
       {/* Scientific Specs Footer */}
-      <div className="p-4 border-t border-slate-200 dark:border-slate-850 text-[10px] font-mono text-slate-500 dark:text-slate-400 space-y-1 bg-slate-50/50 dark:bg-slate-950/40">
-        <div className="flex justify-between"><span>SYS:</span> <span className="text-slate-700 dark:text-slate-300 font-semibold">AS7341 / ESP32</span></div>
-        <div className="flex justify-between"><span>PORT:</span> <span className="text-slate-700 dark:text-slate-300 font-semibold">{usbPort} (115200)</span></div>
-        <div className="flex justify-between"><span>MODEL_ACTIVE:</span> <span className="text-emerald-600 dark:text-emerald-400 font-bold">XGB_{modelVersion}</span></div>
+      <div className="p-4 border-t border-slate-200 dark:border-slate-850 text-[10px] font-mono text-slate-500 dark:text-slate-400 space-y-1.5 bg-slate-50/50 dark:bg-slate-950/40">
+        <div className="grid grid-cols-[90px_1fr] items-center">
+          <span className="text-slate-400 dark:text-slate-500 font-medium">SYS:</span>
+          <span className="text-slate-700 dark:text-slate-300 font-semibold text-right truncate">AS7341 / ESP32</span>
+        </div>
+        <div className="grid grid-cols-[90px_1fr] items-center">
+          <span className="text-slate-400 dark:text-slate-500 font-medium">PORT:</span>
+          <span className="text-slate-700 dark:text-slate-300 font-semibold text-right truncate">{usbPort} (115200)</span>
+        </div>
+        <div className="grid grid-cols-[90px_1fr] items-center">
+          <span className="text-slate-400 dark:text-slate-500 font-medium">MODEL_ACTIVE:</span>
+          <span className="text-emerald-600 dark:text-emerald-400 font-bold text-right truncate" title={activeModel}>
+            {activeModel}
+          </span>
+        </div>
       </div>
     </aside>
   );
