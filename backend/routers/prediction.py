@@ -13,6 +13,7 @@ from models.prediction import (
     BatchPredictionRequest,
     BatchPredictionResponse,
 )
+from config import COMMODITY_CONFIGS
 from services.inference_service import get_inference_service, InferenceService
 from services.database_service import save_prediction, get_next_tomato_id
 
@@ -33,9 +34,11 @@ def get_next_available_tomato_id():
 @router.post("/predict", response_model=PredictionResponse)
 def predict_single_reading(
     req: PredictionRequest,
-    inference_svc: InferenceService = Depends(get_inference_service),
 ):
     try:
+        commodity = req.commodity or req.food_type or "tomato"
+        inference_svc = get_inference_service(commodity)
+
         raw_bands = {
             "Blue": req.Blue,
             "Green": req.Green,
@@ -47,6 +50,9 @@ def predict_single_reading(
         res = inference_svc.predict_single(raw_bands)
 
         # Merge in identifiers and metadata
+        res["commodity"] = commodity
+        res["food_type"] = commodity
+        res["specimen_id"] = req.specimen_id
         res["tomato_id"] = req.tomato_id
         res["position"] = req.position
         res["input_source"] = req.input_source
@@ -58,6 +64,9 @@ def predict_single_reading(
         # Construct response
         return PredictionResponse(
             id=db_id,
+            commodity=commodity,
+            food_type=commodity,
+            specimen_id=req.specimen_id,
             Blue=req.Blue,
             Green=req.Green,
             Yellow=req.Yellow,
@@ -76,6 +85,8 @@ def predict_single_reading(
             model_version=res["model_version"],
             tomato_id=req.tomato_id,
             position=req.position,
+            is_ood=res.get("is_ood", False),
+            ood_reasons=res.get("ood_reasons", []),
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -84,12 +95,11 @@ def predict_single_reading(
 @router.post("/predict_batch", response_model=BatchPredictionResponse)
 def predict_batch_readings(
     req: BatchPredictionRequest,
-    inference_svc: InferenceService = Depends(get_inference_service),
 ):
     """
-    Runs batch predictions for multiple positions (e.g. 10 positions of a tomato).
+    Runs batch predictions for multiple positions (e.g. 10 positions of a specimen).
     Saves each prediction row to database history.
-    Calculates overall aggregated metrics for the tomato.
+    Calculates overall aggregated metrics for the specimen.
     """
     if not req.readings:
         raise HTTPException(status_code=400, detail="Readings list is empty.")
@@ -98,8 +108,13 @@ def predict_batch_readings(
         predictions = []
         scores = []
         categories = []
+        primary_commodity = "tomato"
 
         for reading in req.readings:
+            commodity = reading.commodity or reading.food_type or "tomato"
+            primary_commodity = commodity
+            inference_svc = get_inference_service(commodity)
+
             raw_bands = {
                 "Blue": reading.Blue,
                 "Green": reading.Green,
@@ -109,6 +124,9 @@ def predict_batch_readings(
                 "NIR": reading.NIR,
             }
             res = inference_svc.predict_single(raw_bands)
+            res["commodity"] = commodity
+            res["food_type"] = commodity
+            res["specimen_id"] = reading.specimen_id
             res["tomato_id"] = reading.tomato_id
             res["position"] = reading.position
             res["input_source"] = reading.input_source
@@ -123,6 +141,9 @@ def predict_batch_readings(
             predictions.append(
                 PredictionResponse(
                     id=db_id,
+                    commodity=commodity,
+                    food_type=commodity,
+                    specimen_id=reading.specimen_id,
                     Blue=reading.Blue,
                     Green=reading.Green,
                     Yellow=reading.Yellow,
@@ -141,16 +162,23 @@ def predict_batch_readings(
                     model_version=res["model_version"],
                     tomato_id=reading.tomato_id,
                     position=reading.position,
+                    is_ood=res.get("is_ood", False),
+                    ood_reasons=res.get("ood_reasons", []),
                 )
             )
 
-        # Tomato-level overall aggregation (average of all positions)
+        # Specimen-level overall aggregation (average of all positions)
         avg_score = float(np.mean(scores))
 
+        # Dynamic commodity threshold lookup
+        cfg = COMMODITY_CONFIGS.get(primary_commodity, {})
+        fresh_thresh = cfg.get("fresh_threshold", 60.0)
+        aging_thresh = cfg.get("aging_threshold", 40.0)
+
         # Map average score to overall category based on true thresholds
-        if avg_score < 40.0:
+        if avg_score < aging_thresh:
             overall_category = "Spoiling"
-        elif avg_score < 60.0:
+        elif avg_score < fresh_thresh:
             overall_category = "Aging"
         else:
             overall_category = "Fresh"
@@ -170,7 +198,10 @@ def predict_batch_readings(
 def force_save_prediction(req: PredictionResponse):
     """Allows saving predictions directly (e.g. from manual offline tracking)."""
     try:
+        commodity = req.commodity or req.food_type or "tomato"
         record_data = {
+            "commodity": commodity,
+            "food_type": commodity,
             "Blue": req.Blue,
             "Green": req.Green,
             "Yellow": req.Yellow,
