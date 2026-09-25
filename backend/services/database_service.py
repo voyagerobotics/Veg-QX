@@ -271,7 +271,7 @@ def save_prediction(data: dict) -> int:
 
     row = {
         "timestamp":            data.get("timestamp", datetime.utcnow().isoformat()),
-        "food_type":            data.get("food_type", "tomato"),
+        "food_type":            data.get("commodity") or data.get("food_type") or "tomato",
         "tomato_id":            tomato_id,
         "position":             data.get("position", 1),
         "blue":                 blue,
@@ -615,27 +615,40 @@ def save_immutable_training_snapshot(model_version: str, csv_content: str) -> st
 
 # ─── Model Versions ───────────────────────────────────────────────────────────
 
-def get_all_model_versions() -> list[dict]:
+def get_all_model_versions(food_type: Optional[str] = None) -> list[dict]:
     with db_context() as conn:
-        rows = conn.execute(
-            "SELECT * FROM model_versions ORDER BY trained_at DESC"
-        ).fetchall()
+        if food_type:
+            rows = conn.execute(
+                "SELECT * FROM model_versions WHERE food_type = ? ORDER BY trained_at DESC",
+                (food_type,)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM model_versions ORDER BY trained_at DESC"
+            ).fetchall()
     return [dict(r) for r in rows]
 
 
-def get_active_model_version() -> Optional[dict]:
+def get_active_model_version(food_type: str = "tomato") -> Optional[dict]:
     with db_context() as conn:
         row = conn.execute(
-            "SELECT * FROM model_versions WHERE is_active = 1 LIMIT 1"
+            "SELECT * FROM model_versions WHERE is_active = 1 AND food_type = ? LIMIT 1",
+            (food_type,)
         ).fetchone()
+        if not row and food_type == "tomato":
+            # Fallback for legacy Tomato records
+            row = conn.execute(
+                "SELECT * FROM model_versions WHERE is_active = 1 LIMIT 1"
+            ).fetchone()
     return dict(row) if row else None
 
 
 def upsert_model_version(version_data: dict) -> None:
-    """Insert or update a model version record, setting it as active."""
+    """Insert or update a model version record, setting it as active for its commodity."""
+    food_type = version_data.get("food_type", "tomato")
     with db_context() as conn:
         _migrate_database_schema(conn)
-        conn.execute("UPDATE model_versions SET is_active = 0")
+        conn.execute("UPDATE model_versions SET is_active = 0 WHERE food_type = ?", (food_type,))
         conn.execute("""
         INSERT INTO model_versions (
             version, food_type, training_samples,
@@ -654,23 +667,34 @@ def upsert_model_version(version_data: dict) -> None:
         """, version_data)
 
 
-def set_active_model_version(version: str) -> dict:
+def set_active_model_version(version: str, food_type: Optional[str] = None) -> dict:
     """
-    Sets the specified model version as active in SQLite.
+    Sets the specified model version as active in SQLite scoped to its commodity.
     Returns the model version record dict or raises ValueError if version doesn't exist.
     """
     with db_context() as conn:
         _migrate_database_schema(conn)
-        target = conn.execute("SELECT * FROM model_versions WHERE version = ?", (version,)).fetchone()
+        if food_type:
+            target = conn.execute(
+                "SELECT * FROM model_versions WHERE version = ? AND food_type = ?", (version, food_type)
+            ).fetchone()
+        else:
+            target = conn.execute("SELECT * FROM model_versions WHERE version = ?", (version,)).fetchone()
+
         if not target:
-            raise ValueError(f"Model version {version} not found in database.")
+            target_str = f" for '{food_type}'" if food_type else ""
+            raise ValueError(f"Model version {version}{target_str} not found in database.")
 
-        conn.execute("UPDATE model_versions SET is_active = 0")
-        conn.execute("UPDATE model_versions SET is_active = 1 WHERE version = ?", (version,))
-        return dict(target)
+        target_dict = dict(target)
+        target_food = food_type or target_dict.get("food_type", "tomato")
+
+        # Deactivate only versions of this specific commodity
+        conn.execute("UPDATE model_versions SET is_active = 0 WHERE food_type = ?", (target_food,))
+        conn.execute("UPDATE model_versions SET is_active = 1 WHERE version = ? AND food_type = ?", (version, target_food))
+        return target_dict
 
 
-def delete_model_version_record(version: str) -> dict:
+def delete_model_version_record(version: str, food_type: Optional[str] = None) -> dict:
     """
     Deletes a retrained model version record from SQLite.
     v1.0 and v1.1 are protected permanent baselines and cannot be deleted.
@@ -681,15 +705,23 @@ def delete_model_version_record(version: str) -> dict:
 
     with db_context() as conn:
         _migrate_database_schema(conn)
-        target = conn.execute("SELECT * FROM model_versions WHERE version = ?", (version,)).fetchone()
+        if food_type:
+            target = conn.execute(
+                "SELECT * FROM model_versions WHERE version = ? AND food_type = ?", (version, food_type)
+            ).fetchone()
+        else:
+            target = conn.execute("SELECT * FROM model_versions WHERE version = ?", (version,)).fetchone()
+
         if not target:
-            raise ValueError(f"Model version {version} not found.")
+            target_str = f" for '{food_type}'" if food_type else ""
+            raise ValueError(f"Model version {version}{target_str} not found.")
 
         target_dict = dict(target)
         if target_dict.get("is_active") == 1:
             raise ValueError(f"Cannot delete model version {version} because it is currently active. Please activate another version first.")
 
-        conn.execute("DELETE FROM model_versions WHERE version = ?", (version,))
+        target_food = target_dict.get("food_type", "tomato")
+        conn.execute("DELETE FROM model_versions WHERE version = ? AND food_type = ?", (version, target_food))
         return target_dict
 
 
