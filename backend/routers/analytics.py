@@ -2,7 +2,8 @@
 routers/analytics.py
 Endpoint to fetch analytical insights, trends, and feature importances.
 """
-from fastapi import APIRouter, Depends
+from typing import Optional
+from fastapi import APIRouter, Depends, Query
 import numpy as np
 
 from services.database_service import get_analytics_summary
@@ -13,15 +14,18 @@ router = APIRouter(prefix="/analytics_dashboard", tags=["Analytics"])
 
 @router.get("")
 def fetch_analytics_dashboard(
-    inference_svc: InferenceService = Depends(get_inference_service),
+    commodity: Optional[str] = Query(None, description="Commodity to analyze"),
+    food_type: str = Query("tomato", description="Alias for commodity"),
 ):
     """
     Returns aggregated stats for dashboard display, including category
     distributions, average freshness scores, time series trends, and
-    feature importances.
+    feature importances for the selected commodity.
     """
     try:
-        summary = get_analytics_summary(inference_svc.food_type)
+        target = commodity or food_type or "tomato"
+        inference_svc = get_inference_service(target)
+        summary = get_analytics_summary(target)
 
         # Retrieve feature importances from XGBoost model
         importances = {}
