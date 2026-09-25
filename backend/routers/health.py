@@ -14,9 +14,10 @@ router = APIRouter(prefix="/health", tags=["Health"])
 
 @router.get("")
 def health_check(
+    commodity: str = "tomato",
     sensor_svc: SensorService = Depends(get_sensor_service),
-    inference_svc: InferenceService = Depends(get_inference_service),
 ):
+    inference_svc = get_inference_service(commodity)
     # Database check
     db_ok = False
     try:
@@ -29,6 +30,28 @@ def health_check(
 
     # Model status
     model_ok = inference_svc.is_loaded()
+
+    # Active model descriptive name
+    active_model_name = None
+    if model_ok:
+        meta = getattr(inference_svc, "metadata", {}) or {}
+        reg_algo = str(meta.get("regressor_algorithm", "XGBoost"))
+        if "LightGBM" in reg_algo:
+            algo_code = "LGBM"
+        elif "HistGradient" in reg_algo:
+            algo_code = "HGB"
+        elif "XGB" in reg_algo:
+            algo_code = "XGB"
+        else:
+            algo_code = "XGB"
+
+        raw_ver = inference_svc.model_version or "v1.0"
+        if raw_ver.startswith(f"{commodity}_"):
+            active_model_name = f"{algo_code}_{raw_ver}"
+        elif raw_ver.startswith("v"):
+            active_model_name = f"{algo_code}_{commodity}_{raw_ver}"
+        else:
+            active_model_name = f"{algo_code}_{raw_ver}"
 
     # USB status
     sensor_status = sensor_svc.get_status()
@@ -43,9 +66,12 @@ def health_check(
         "database_connected": db_ok,
         "model_loaded": model_ok,
         "model_version": inference_svc.model_version if model_ok else None,
+        "active_model": active_model_name,
+        "commodity": commodity,
         "usb_connected": sensor_status["is_connected"],
         "usb_port": sensor_status["port"] or detected_port,
         "available_ports": available_ports,
         "esp32_detected": sensor_status["esp32_detected"] or len(available_ports) > 0,
         "sensor_ready": sensor_status["is_connected"],
     }
+
