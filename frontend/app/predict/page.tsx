@@ -6,10 +6,32 @@ import IndexDisplay from "@/components/prediction/IndexDisplay";
 import FreshnessGauge from "@/components/prediction/FreshnessGauge";
 import CategoryCard from "@/components/prediction/CategoryCard";
 import ConfidenceBar from "@/components/prediction/ConfidenceBar";
-import { Upload, Terminal, BarChart2 } from "lucide-react";
+import { Upload, Terminal, BarChart2, AlertTriangle } from "lucide-react";
+import { FOOD_TYPES } from "@/lib/constants";
 
 export default function PredictionPage() {
   const [activeTab, setActiveTab] = useState<"single" | "multi" | "csv">("single");
+  const [commodity, setCommodity] = useState<string>("tomato");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("vegqx_commodity");
+      if (saved) setCommodity(saved);
+      const onCommChange = (e: any) => {
+        if (e.detail) setCommodity(e.detail);
+      };
+      window.addEventListener("commodityChanged", onCommChange);
+      return () => window.removeEventListener("commodityChanged", onCommChange);
+    }
+  }, []);
+
+  const handleCommoditySelect = (newComm: string) => {
+    setCommodity(newComm);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("vegqx_commodity", newComm);
+      window.dispatchEvent(new CustomEvent("commodityChanged", { detail: newComm }));
+    }
+  };
 
   // ───────────────────────────────────────────────────────────────────────────
   // Tab 1: Single Prediction State & Logic
@@ -49,6 +71,8 @@ export default function PredictionPage() {
     try {
       const res = await api.predictSingle({
         ...singleInput,
+        commodity,
+        food_type: commodity,
         input_source: "manual",
       });
       setSingleResult(res);
@@ -93,6 +117,8 @@ export default function PredictionPage() {
     try {
       const readings = multiRows.map((r) => ({
         ...r,
+        commodity,
+        food_type: commodity,
         tomato_id: multiTomatoId,
         input_source: "manual",
       }));
@@ -105,6 +131,7 @@ export default function PredictionPage() {
       setMultiLoading(false);
     }
   };
+
 
   // ───────────────────────────────────────────────────────────────────────────
   // Tab 3: CSV Upload State & Logic (Module 2)
@@ -167,6 +194,30 @@ export default function PredictionPage() {
         </p>
       </div>
 
+      {/* Commodity Selector Bar */}
+      <div className="bg-slate-50 dark:bg-slate-900/60 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-mono font-bold text-slate-500 uppercase tracking-widest">Active Commodity Target:</span>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {FOOD_TYPES.filter((f) => !f.disabled).map((f) => (
+            <button
+              key={f.value}
+              type="button"
+              onClick={() => handleCommoditySelect(f.value)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-mono flex items-center gap-1.5 transition-all ${
+                commodity === f.value
+                  ? "bg-emerald-600 text-white font-bold shadow-md shadow-emerald-600/25"
+                  : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-emerald-500/50"
+              }`}
+            >
+              <span>{f.icon}</span>
+              <span>{f.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Navigation tabs */}
       <div className="flex border-b border-slate-200 dark:border-slate-800 font-mono text-xs">
         <button
@@ -187,7 +238,7 @@ export default function PredictionPage() {
               : "border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-300"
           }`}
         >
-          02 / 10-POSITION TOMATO ARRAY
+          02 / 10-POSITION SPECIMEN ARRAY
         </button>
         <button
           onClick={() => setActiveTab("csv")}
@@ -268,6 +319,24 @@ export default function PredictionPage() {
           <div className="lg:col-span-2 space-y-6">
             {singleResult ? (
               <>
+                {singleResult.is_ood && (
+                  <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-500 dark:text-amber-400 text-xs flex items-start gap-3 shadow-xs">
+                    <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <div className="font-bold uppercase tracking-wider font-mono">Out-of-Distribution Warning</div>
+                      <p className="text-[11px] text-slate-700 dark:text-slate-300">
+                        This reading deviates significantly from calibrated reference bounds for {commodity.replace("_", " ")}.
+                      </p>
+                      {singleResult.ood_reasons && singleResult.ood_reasons.length > 0 && (
+                        <ul className="list-disc pl-4 text-[10px] space-y-0.5 text-amber-600 dark:text-amber-300 font-mono">
+                          {singleResult.ood_reasons.map((reason: string, idx: number) => (
+                            <li key={idx}>{reason}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <IndexDisplay ndvi={singleResult.NDVI} gndvi={singleResult.GNDVI} rvi={singleResult.RVI} />
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
@@ -280,6 +349,7 @@ export default function PredictionPage() {
                   <div className="flex flex-col justify-between gap-6">
                     <CategoryCard category={singleResult.category} confidence={singleResult.confidence_pct} />
                     <div className="glass-panel rounded-2xl p-4 border border-slate-200 dark:border-slate-800/40 text-[10px] font-mono text-slate-600 dark:text-slate-400 space-y-1 shadow-sm">
+                      <div>TARGET COMMODITY: <span className="text-emerald-600 dark:text-emerald-400 font-bold uppercase">{singleResult.commodity || commodity}</span></div>
                       <div>SYS ACTIVE MODEL: <span className="text-slate-900 dark:text-white font-bold">{singleResult.model_version}</span></div>
                       <div>TELEMETRY INDEX: <span className="text-emerald-600 dark:text-emerald-400 font-bold">MANUAL_ENTRY</span></div>
                       <div>ID RECORDED: <span className="text-slate-900 dark:text-white font-bold">db_row_{singleResult.id}</span></div>

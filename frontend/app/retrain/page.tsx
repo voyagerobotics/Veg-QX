@@ -2,14 +2,37 @@
 
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
+import { FOOD_TYPES } from "@/lib/constants";
 import { RotateCcw, AlertTriangle, Play, ChevronRight, CheckCircle2, Download, RefreshCw } from "lucide-react";
 
 export default function RetrainingPage() {
   const [step, setStep] = useState(1);
+  const [commodity, setCommodity] = useState<string>("tomato");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
+
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("vegqx_commodity");
+      if (saved) setCommodity(saved);
+      const onCommChange = (e: any) => {
+        if (e.detail) setCommodity(e.detail);
+      };
+      window.addEventListener("commodityChanged", onCommChange);
+      return () => window.removeEventListener("commodityChanged", onCommChange);
+    }
+  }, []);
+
+  const handleCommoditySelect = (newComm: string) => {
+    setCommodity(newComm);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("vegqx_commodity", newComm);
+      window.dispatchEvent(new CustomEvent("commodityChanged", { detail: newComm }));
+    }
+  };
 
   // Dynamic dataset preview state
   const [preview, setPreview] = useState<{
@@ -45,9 +68,9 @@ export default function RetrainingPage() {
     error: null,
   });
 
-  const loadPreview = async () => {
+  const loadPreview = async (targetComm = commodity) => {
     try {
-      const res = await api.getRetrainingPreview();
+      const res = await api.getRetrainingPreview(targetComm);
       if (res.success) {
         setPreview(res.data);
       }
@@ -57,8 +80,8 @@ export default function RetrainingPage() {
   };
 
   useEffect(() => {
-    loadPreview();
-  }, []);
+    loadPreview(commodity);
+  }, [commodity]);
 
   // Poll progress state while training is running
   useEffect(() => {
@@ -86,20 +109,20 @@ export default function RetrainingPage() {
     setProgress({ is_running: true, step_name: "Initializing Pipeline...", percentage: 5, error: null });
 
     try {
-      const res = await api.retrainModel(notes);
+      const res = await api.retrainModel(notes, commodity);
       if (res.success) {
         setResult(res);
         setStep(3); // Go to evaluation results
-        loadPreview(); // Refresh preview to reflect dataset reset
+        loadPreview(commodity); // Refresh preview to reflect dataset reset
       } else {
         setError(res.error || "Retraining failed checks.");
         setStep(1);
-        loadPreview();
+        loadPreview(commodity);
       }
     } catch (err: any) {
       setError(err.response?.data?.detail || err.message || "Retraining runtime error.");
       setStep(1);
-      loadPreview();
+      loadPreview(commodity);
     } finally {
       setLoading(false);
     }
@@ -126,6 +149,30 @@ export default function RetrainingPage() {
           <Download size={14} />
           <span>DOWNLOAD VERIFIED DATASET</span>
         </a>
+      </div>
+
+      {/* Commodity Selector Bar */}
+      <div className="bg-slate-50 dark:bg-slate-900/60 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-mono font-bold text-slate-500 uppercase tracking-widest">Retraining Commodity:</span>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {FOOD_TYPES.filter((f) => !f.disabled).map((f) => (
+            <button
+              key={f.value}
+              type="button"
+              onClick={() => handleCommoditySelect(f.value)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-mono flex items-center gap-1.5 transition-all ${
+                commodity === f.value
+                  ? "bg-emerald-600 text-white font-bold shadow-md shadow-emerald-600/25"
+                  : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-emerald-500/50"
+              }`}
+            >
+              <span>{f.icon}</span>
+              <span>{f.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Retraining Stepper Interface */}
@@ -166,7 +213,7 @@ export default function RetrainingPage() {
                   Step 1: Dataset Verification & Retraining Preview
                 </h3>
                 <button
-                  onClick={loadPreview}
+                  onClick={() => loadPreview()}
                   className="text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors"
                 >
                   <RefreshCw size={14} />

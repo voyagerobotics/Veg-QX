@@ -3,22 +3,26 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { ModelVersion } from "@/lib/types";
+import { FOOD_TYPES } from "@/lib/constants";
 import { Layers, RefreshCw, CheckCircle2, Trash2, AlertTriangle, ShieldCheck } from "lucide-react";
 
 export default function ModelVersioningPage() {
   const [versions, setVersions] = useState<ModelVersion[]>([]);
+  const [selectedCommodity, setSelectedCommodity] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; isError: boolean } | null>(null);
 
   // 2-Step Confirmation Modal state for deletion
   const [deleteTargetVersion, setDeleteTargetVersion] = useState<string | null>(null);
+  const [deleteTargetCommodity, setDeleteTargetCommodity] = useState<string | null>(null);
   const [deleteConfirmStep, setDeleteConfirmStep] = useState<1 | 2 | null>(null);
 
   const loadVersions = async () => {
     setLoading(true);
     try {
-      const res = await api.getModelVersions();
+      const commParam = selectedCommodity === "all" ? undefined : selectedCommodity;
+      const res = await api.getModelVersions(commParam);
       if (res.success && res.data) {
         setVersions(res.data);
       }
@@ -31,15 +35,18 @@ export default function ModelVersioningPage() {
 
   useEffect(() => {
     loadVersions();
-  }, []);
+  }, [selectedCommodity]);
 
-  const handleActivate = async (version: string) => {
+  const handleActivate = async (version: string, foodType: string) => {
     setActionLoading(true);
     setMessage(null);
     try {
-      const res = await api.activateModelVersion(version);
+      const res = await api.activateModelVersion(version, foodType);
       if (res.success) {
-        setMessage({ text: `✔ Model version ${version} is now ACTIVE in production.`, isError: false });
+        setMessage({ text: `✔ Model version ${version} for '${foodType}' is now ACTIVE in production.`, isError: false });
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("commodityChanged", { detail: foodType }));
+        }
         await loadVersions();
       } else {
         setMessage({ text: res.message || "Failed to activate model.", isError: true });
@@ -51,9 +58,11 @@ export default function ModelVersioningPage() {
     }
   };
 
-  const handleStartDelete = (version: string) => {
-    if (version === "v1.0" || version === "v1.1") return;
+  const handleStartDelete = (version: string, foodType: string) => {
+    if (foodType === "tomato" && (version === "v1.0" || version === "v1.1")) return;
+    if (foodType !== "tomato" && version === "v1.0") return;
     setDeleteTargetVersion(version);
+    setDeleteTargetCommodity(foodType);
     setDeleteConfirmStep(1);
   };
 
@@ -63,6 +72,7 @@ export default function ModelVersioningPage() {
 
   const handleCancelDelete = () => {
     setDeleteTargetVersion(null);
+    setDeleteTargetCommodity(null);
     setDeleteConfirmStep(null);
   };
 
@@ -71,11 +81,12 @@ export default function ModelVersioningPage() {
     setActionLoading(true);
     setMessage(null);
     const target = deleteTargetVersion;
+    const targetComm = deleteTargetCommodity || undefined;
     
     try {
-      const res = await api.deleteModelVersion(target);
+      const res = await api.deleteModelVersion(target, targetComm);
       if (res.success) {
-        setMessage({ text: `✔ Retrained model version ${target} deleted successfully.`, isError: false });
+        setMessage({ text: `✔ Retrained model version ${target} for '${targetComm || "tomato"}' deleted successfully.`, isError: false });
         handleCancelDelete();
         await loadVersions();
       } else {
@@ -119,6 +130,35 @@ export default function ModelVersioningPage() {
         </div>
       )}
 
+      {/* Commodity Filter Tabs */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+        <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest mr-2">Filter Commodity:</span>
+        <button
+          onClick={() => setSelectedCommodity("all")}
+          className={`px-3 py-1 rounded-lg text-xs font-mono transition-all ${
+            selectedCommodity === "all"
+              ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold shadow-xs"
+              : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+          }`}
+        >
+          All Commodities
+        </button>
+        {FOOD_TYPES.filter((f) => !f.disabled).map((f) => (
+          <button
+            key={f.value}
+            onClick={() => setSelectedCommodity(f.value)}
+            className={`px-3 py-1 rounded-lg text-xs font-mono flex items-center gap-1.5 transition-all ${
+              selectedCommodity === f.value
+                ? "bg-emerald-600 text-white font-bold shadow-xs"
+                : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+            }`}
+          >
+            <span>{f.icon}</span>
+            <span>{f.label}</span>
+          </button>
+        ))}
+      </div>
+
       {/* Main Grid: Active Version Details + Version History list */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* Active Version details panel on left */}
@@ -137,7 +177,8 @@ export default function ModelVersioningPage() {
                 <span className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{active.version}</span>
               </div>
               <div className="space-y-2 border-t border-slate-200 dark:border-slate-900 pt-3 text-slate-600 dark:text-slate-400">
-                <div className="flex justify-between"><span>Trained on:</span><span className="text-slate-900 dark:text-white font-bold">{active.trained_at.split(' ')[0]}</span></div>
+                <div className="flex justify-between"><span>Commodity:</span><span className="text-emerald-600 dark:text-emerald-400 font-bold capitalize">{active.food_type?.replace("_", " ")}</span></div>
+                <div className="flex justify-between"><span>Trained on:</span><span className="text-slate-900 dark:text-white font-bold">{active.trained_at ? active.trained_at.split(' ')[0] : 'N/A'}</span></div>
                 <div className="flex justify-between"><span>Training samples:</span><span className="text-slate-900 dark:text-white font-bold">{active.training_samples.toLocaleString()} rows</span></div>
                 <div className="flex justify-between"><span>Acc Accuracy:</span><span className="text-emerald-600 dark:text-emerald-400 font-bold">{(active.classification_accuracy * 100).toFixed(2)}%</span></div>
                 <div className="flex justify-between"><span>Reg R²:</span><span className="text-sky-600 dark:text-sky-400 font-bold">{active.regression_r2.toFixed(4)}</span></div>
@@ -163,6 +204,7 @@ export default function ModelVersioningPage() {
               <thead>
                 <tr className="text-slate-500 border-b border-slate-200 dark:border-slate-800 pb-2 uppercase tracking-wider text-[9px]">
                   <th className="pb-2">VER</th>
+                  <th className="pb-2">COMMODITY</th>
                   <th className="pb-2">TRAINED_DATE</th>
                   <th className="pb-2">SAMPLES</th>
                   <th className="pb-2">ACCURACY</th>
@@ -176,13 +218,16 @@ export default function ModelVersioningPage() {
                   <tr key={v.id} className="hover:bg-slate-50 dark:hover:bg-slate-950/40">
                     <td className="py-3 font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                       <span>{v.version}</span>
-                      {(v.version === "v1.0" || v.version === "v1.1") && (
+                      {((v.food_type === "tomato" && (v.version === "v1.0" || v.version === "v1.1")) || (v.food_type !== "tomato" && v.version === "v1.0")) && (
                         <span title="Permanent System Baseline">
                           <ShieldCheck size={12} className="text-amber-500" />
                         </span>
                       )}
                     </td>
-                    <td className="py-3 text-slate-600 dark:text-slate-400">{v.trained_at.split(' ')[0]}</td>
+                    <td className="py-3 text-slate-700 dark:text-slate-300 capitalize font-semibold">
+                      {v.food_type?.replace("_", " ")}
+                    </td>
+                    <td className="py-3 text-slate-600 dark:text-slate-400">{v.trained_at ? v.trained_at.split(' ')[0] : 'N/A'}</td>
                     <td className="py-3 text-slate-600 dark:text-slate-400">{v.training_samples.toLocaleString()}</td>
                     <td className="py-3 text-slate-800 dark:text-slate-300 font-semibold">{(v.classification_accuracy * 100).toFixed(2)}%</td>
                     <td className="py-3 text-slate-800 dark:text-slate-300 font-semibold">{v.regression_r2.toFixed(4)}</td>
@@ -195,7 +240,7 @@ export default function ModelVersioningPage() {
                         </span>
                       ) : (
                         <button
-                          onClick={() => handleActivate(v.version)}
+                          onClick={() => handleActivate(v.version, v.food_type)}
                           disabled={actionLoading}
                           className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-500/10 border border-emerald-300 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-bold text-[8px] uppercase rounded transition-all shadow-xs disabled:opacity-50"
                         >
@@ -206,7 +251,7 @@ export default function ModelVersioningPage() {
 
                     {/* Management / Deletion Column */}
                     <td className="py-3 text-right">
-                      {v.version === "v1.0" || v.version === "v1.1" ? (
+                      {((v.food_type === "tomato" && (v.version === "v1.0" || v.version === "v1.1")) || (v.food_type !== "tomato" && v.version === "v1.0")) ? (
                         <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 font-bold text-[8px] uppercase">
                           PERMANENT BASELINE
                         </span>
@@ -216,11 +261,12 @@ export default function ModelVersioningPage() {
                         </span>
                       ) : (
                         <button
-                          onClick={() => handleStartDelete(v.version)}
+                          onClick={() => handleStartDelete(v.version, v.food_type)}
                           disabled={actionLoading}
-                          className="px-2.5 py-1 bg-red-50 hover:bg-red-100 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 font-bold text-[8px] uppercase rounded transition-all inline-flex items-center gap-1 disabled:opacity-50"
+                          className="text-red-500 hover:text-red-400 transition-colors p-1"
+                          title={`Delete model ${v.version} for ${v.food_type}`}
                         >
-                          <Trash2 size={10} /> DELETE
+                          <Trash2 size={13} />
                         </button>
                       )}
                     </td>
