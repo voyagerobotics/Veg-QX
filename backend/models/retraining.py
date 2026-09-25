@@ -14,3 +14,5 @@ class VerificationRequest(BaseModel):
 
 class RetrainingRequest(BaseModel):
     notes: Optional[str] = Field("", description="Optional notes on the retraining run")
+    commodity: Optional[str] = Field("tomato", description="Target commodity to retrain")
+    food_type: Optional[str] = Field("tomato", description="Alias for commodity")
