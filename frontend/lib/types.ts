@@ -1,10 +1,22 @@
 // types.ts
 // Shared TypeScript types for the Tomato Freshness Detection frontend
 
+export interface CommodityConfig {
+  key: string;
+  display_name: string;
+  icon: string;
+  family: string;
+  fresh_threshold: number;
+  aging_threshold: number;
+  model_version: string;
+}
+
 export interface PredictionRecord {
   id?: number;
   timestamp: string;
   food_type: string;
+  commodity?: string;
+  specimen_id?: string;
   tomato_id?: number;
   position?: number;
   blue: number;
@@ -24,6 +36,8 @@ export interface PredictionRecord {
   confidence_spoiling: number;
   model_version: string;
   input_source: "manual" | "usb" | "csv_upload";
+  is_ood?: boolean;
+  ood_reasons?: string[];
 }
 
 export interface ModelInfo {
@@ -56,6 +70,8 @@ export interface USBStatus {
   database_connected: boolean;
   model_loaded: boolean;
   model_version: string | null;
+  active_model?: string | null;
+  commodity?: string;
   usb_connected: boolean;
   usb_port: string | null;
   sensor_ready: boolean;

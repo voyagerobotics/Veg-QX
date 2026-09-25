@@ -10,6 +10,7 @@ import {
   USBStatus,
   RetrainingLog,
   AnalyticsSummary,
+  COMStatus,
 } from "./types";
 
 const client = axios.create({
@@ -21,8 +22,9 @@ const client = axios.create({
 
 export const api = {
   // Health
-  getHealth: async (): Promise<USBStatus> => {
-    const res = await client.get("/health");
+  getHealth: async (commodity?: string): Promise<USBStatus> => {
+    const endpoint = commodity ? `/health?commodity=${encodeURIComponent(commodity)}` : "/health";
+    const res = await client.get(endpoint);
     return res.data;
   },
 
@@ -48,6 +50,12 @@ export const api = {
     return res.data;
   },
 
+  // Commodities
+  getCommodities: async (): Promise<{ success: boolean; data: any[] }> => {
+    const res = await client.get("/commodities");
+    return res.data;
+  },
+
   // Predictions
   predictSingle: async (reading: {
     Blue: number;
@@ -56,6 +64,9 @@ export const api = {
     Orange: number;
     Red: number;
     NIR: number;
+    commodity?: string;
+    food_type?: string;
+    specimen_id?: string;
     tomato_id?: number;
     position?: number;
     input_source?: string;
@@ -71,6 +82,9 @@ export const api = {
     Orange: number;
     Red: number;
     NIR: number;
+    commodity?: string;
+    food_type?: string;
+    specimen_id?: string;
     tomato_id?: number;
     position?: number;
     input_source?: string;
@@ -115,12 +129,14 @@ export const api = {
   getHistory: async (
     limit = 50,
     offset = 0,
-    category?: string
+    category?: string,
+    commodity?: string
   ): Promise<{ success: boolean; total: number; data: PredictionRecord[] }> => {
     const params = new URLSearchParams();
     params.append("limit", limit.toString());
     params.append("offset", offset.toString());
     if (category) params.append("category", category);
+    if (commodity) params.append("commodity", commodity);
     const res = await client.get(`/prediction_history?${params.toString()}`);
     return res.data;
   },
@@ -180,27 +196,31 @@ export const api = {
   },
 
   // Model Retraining & Info
-  getmodelInfo: async (): Promise<{ success: boolean; data: ModelInfo }> => {
-    const res = await client.get("/model_information");
+  getmodelInfo: async (commodity?: string): Promise<{ success: boolean; data: ModelInfo }> => {
+    const endpoint = commodity ? `/model_information?commodity=${commodity}` : "/model_information";
+    const res = await client.get(endpoint);
     return res.data;
   },
 
-  getModelVersions: async (): Promise<{ success: boolean; data: ModelVersion[] }> => {
-    const res = await client.get("/model_versions");
+  getModelVersions: async (commodity?: string): Promise<{ success: boolean; data: ModelVersion[] }> => {
+    const endpoint = commodity ? `/model_versions?commodity=${commodity}` : "/model_versions";
+    const res = await client.get(endpoint);
     return res.data;
   },
 
-  activateModelVersion: async (version: string): Promise<{ success: boolean; message: string }> => {
-    const res = await client.post(`/model_versions/activate/${version}`);
+  activateModelVersion: async (version: string, commodity?: string): Promise<{ success: boolean; message: string }> => {
+    const endpoint = commodity ? `/model_versions/activate/${version}?commodity=${commodity}` : `/model_versions/activate/${version}`;
+    const res = await client.post(endpoint);
     return res.data;
   },
 
-  deleteModelVersion: async (version: string): Promise<{ success: boolean; message: string }> => {
-    const res = await client.delete(`/model_versions/${version}`);
+  deleteModelVersion: async (version: string, commodity?: string): Promise<{ success: boolean; message: string }> => {
+    const endpoint = commodity ? `/model_versions/delete/${version}?commodity=${commodity}` : `/model_versions/${version}`;
+    const res = await client.delete(endpoint);
     return res.data;
   },
 
-  getRetrainingPreview: async (): Promise<{
+  getRetrainingPreview: async (commodity?: string): Promise<{
     success: boolean;
     data: {
       reference_samples: number;
@@ -213,7 +233,8 @@ export const api = {
       remaining_required: number;
     };
   }> => {
-    const res = await client.get("/retrain_model/preview");
+    const endpoint = commodity ? `/retrain_model/preview?commodity=${commodity}` : "/retrain_model/preview";
+    const res = await client.get(endpoint);
     return res.data;
   },
 
@@ -230,15 +251,17 @@ export const api = {
     return res.data;
   },
 
-  retrainModel: async (notes = ""): Promise<RetrainingLog> => {
-    const res = await client.post("/retrain_model", { notes });
+  retrainModel: async (notes = "", commodity?: string): Promise<RetrainingLog> => {
+    const res = await client.post("/retrain_model", { notes, commodity });
     return res.data;
   },
 
   // Analytics
-  getAnalytics: async (): Promise<AnalyticsSummary> => {
-    const res = await client.get("/analytics_dashboard");
+  getAnalytics: async (commodity?: string): Promise<AnalyticsSummary> => {
+    const endpoint = commodity ? `/analytics_dashboard?commodity=${commodity}` : "/analytics_dashboard";
+    const res = await client.get(endpoint);
     return res.data;
   },
 };
+
 

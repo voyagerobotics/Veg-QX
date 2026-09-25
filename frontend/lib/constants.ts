@@ -35,8 +35,22 @@ export const SENSOR_BAND_COLORS = {
 };
 
 export const FOOD_TYPES = [
-  { value: "tomato", label: "Tomato", icon: "🍅" },
-  { value: "banana", label: "Banana (Future Support)", icon: "🍌", disabled: true },
-  { value: "apple", label: "Apple (Future Support)", icon: "🍎", disabled: true },
-  { value: "fish", label: "Fish (Future Support)", icon: "🐟", disabled: true },
+  { value: "tomato", label: "Tomato", icon: "🍅", status: "active", family: "Solanaceae" },
+  { value: "carrot", label: "Carrot", icon: "🥕", status: "active", family: "Apiaceae" },
+  { value: "brinjal", label: "Brinjal (Eggplant)", icon: "🍆", status: "active", family: "Solanaceae" },
+  { value: "green_brinjal", label: "Green Brinjal", icon: "🟢", status: "active", family: "Solanaceae" },
+  { value: "beetroot", label: "Beetroot", icon: "🟣", status: "active", family: "Amaranthaceae" },
+  { value: "bitter_gourd", label: "Bitter Gourd", icon: "🥒", status: "active", family: "Cucurbitaceae" },
+  { value: "green_chilli", label: "Green Chilli (Future)", icon: "🌶️", disabled: true, family: "Solanaceae" },
+  { value: "peas", label: "Peas (Future)", icon: "🫛", disabled: true, family: "Fabaceae" },
 ];
+
+export const COMMODITY_HOLOGRAM_IMAGES: Record<string, string> = {
+  tomato: "/hologram_tomato.png",
+  carrot: "/Hologram_carrot.png",
+  brinjal: "/Hologram_Brinjal.png",
+  green_brinjal: "/Hologram_Green_Brinjal.png",
+  beetroot: "/Hologram_beetroot.png",
+  bitter_gourd: "/Hologram_Bitter_ground.png",
+};
+
