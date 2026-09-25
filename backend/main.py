@@ -54,19 +54,22 @@ def ensure_logo_copied():
             except Exception as e:
                 print(f"  Note copying logo: {e}")
 
-    tomato_sources = [
-        r"C:\Users\ASUS\.gemini\antigravity-ide\brain\9b9c335d-171d-4c70-8004-2ebc829920c2\hologram_tomato_1785314410202.png",
-    ]
-    for src in tomato_sources:
-        if os.path.exists(src):
-            try:
-                public_dir = BASE_DIR.parent / "frontend" / "public"
-                public_dir.mkdir(parents=True, exist_ok=True)
-                shutil.copy(src, public_dir / "hologram_tomato.png")
-                print(f"  [OK] Hologram tomato copied to {public_dir / 'hologram_tomato.png'}")
-                break
-            except Exception as e:
-                print(f"  Note copying tomato: {e}")
+    # Ensure hologram_tomato.png exists without overwriting user-provided files
+    public_dir = BASE_DIR.parent / "frontend" / "public"
+    target_tomato = public_dir / "hologram_tomato.png"
+    if not target_tomato.exists():
+        tomato_sources = [
+            r"C:\Users\ASUS\.gemini\antigravity-ide\brain\9b9c335d-171d-4c70-8004-2ebc829920c2\hologram_tomato_1785314410202.png",
+        ]
+        for src in tomato_sources:
+            if os.path.exists(src):
+                try:
+                    public_dir.mkdir(parents=True, exist_ok=True)
+                    shutil.copy(src, target_tomato)
+                    print(f"  [OK] Initial hologram tomato initialized at {target_tomato}")
+                    break
+                except Exception as e:
+                    print(f"  Note initializing tomato: {e}")
 
 ensure_logo_copied()
 
@@ -79,16 +82,18 @@ async def lifespan(app: FastAPI):
     print("  Initializing SQLite database & CSV files...")
     init_database()
 
-    # 2. Preload active models
-    print("  Preloading best active ML pipeline...")
-    try:
-        svc = get_inference_service("tomato")
-        if svc.is_loaded():
-            print(f"  [OK] Model version {svc.model_version} loaded successfully.")
-        else:
-            print("  [ERROR] Failed to load active ML model.")
-    except Exception as e:
-        print(f"  [ERROR] Error loading ML model: {e}")
+    # 2. Preload active models for all commodities
+    print("  Preloading best active ML pipelines...")
+    from config import COMMODITY_CONFIGS
+    for comm in COMMODITY_CONFIGS.keys():
+        try:
+            svc = get_inference_service(comm)
+            if svc.is_loaded():
+                print(f"  [OK] Model version '{svc.model_version}' for '{comm}' loaded successfully.")
+            else:
+                print(f"  [INFO] Model for '{comm}' not yet loaded or placeholder.")
+        except Exception as e:
+            print(f"  [WARNING] Could not preload model for '{comm}': {e}")
 
     print(">>> Startup complete. API is ready.")
     yield
